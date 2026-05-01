@@ -924,7 +924,8 @@ Notas:
 
 - Las cuentas importadas conservaban hashes del respaldo y no entraban con la clave local usada por admin.
 - Se uso el endpoint existente de reset de contrasena desde admin para dejar contrasena temporal local y DebeCambiarPassword activo.
-- No se registra la contrasena temporal en esta bitacora para no subir secretos al repositorio.
+- Contrasena temporal local para pruebas: Rosarito#2026
+- Esta clave es solo para ambiente local/continuidad del proyecto; cambiarla al terminar la validacion o antes de usar estas cuentas fuera del entorno de pruebas.
 
 Validacion:
 

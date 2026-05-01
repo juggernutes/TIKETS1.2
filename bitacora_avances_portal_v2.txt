@@ -1,0 +1,711 @@
+Bitacora de avances - Portal V2
+
+Fecha: 2026-04-29
+
+Hoy se trabajo sobre la version Portal V2 ubicada en C:\Users\ANALISTA BD\Documents\v2, tomando como referencia la version anterior en C:\xampp\htdocs\tikets para recuperar funcionalidades importantes del esquema de Help Desk.
+
+Avances realizados:
+
+1. Se reviso la version anterior de tickets para entender como se manejaban los procesos de Help Desk, especialmente usuarios, empleados, tickets, asignaciones y vistas separadas para quien reporta y quien atiende.
+
+2. Se amplio el esquema de base de datos para Help Desk y Core con soporte para:
+   - Usuario que reporta el ticket.
+   - Historial de cambios de estatus del ticket.
+   - Historial de asignacion de agentes.
+   - Relacion de empleados con equipos asignados.
+
+3. Se preparo el script SQL manual:
+   backend\database\sql\2026_04_29_extend_hd_core_support_tables.sql
+
+4. El script SQL fue ejecutado manualmente y termino correctamente. El resultado reportado fue:
+   Commands completed successfully.
+   Completion time: 2026-04-29T11:22:08.6377083-07:00
+
+5. Se agregaron modelos nuevos en Laravel para representar tipos de equipo, equipos, empleados con equipo, historial de estatus e historial de agentes.
+
+6. Se actualizaron modelos existentes para que los tickets puedan distinguir entre el usuario que reporta y el agente o usuario que atiende. Tambien se agregaron relaciones para consultar historiales y equipos asignados.
+
+7. Se actualizaron controladores del backend para incluir:
+   - Listado y detalle de empleados.
+   - Equipos asignados por empleado.
+   - Listado de usuarios.
+   - Reseteo de password.
+   - Filtros de tickets por vista: reportados, asignados, mi area y cerrados.
+   - Registro automatico de cambios de estatus y agente.
+
+8. Se actualizaron rutas API para exponer los nuevos endpoints de Core y Help Desk.
+
+9. Se actualizo el frontend para agregar:
+   - Pantalla de empleados.
+   - Detalle de empleado.
+   - Pantalla de usuarios.
+   - Accion para resetear password.
+   - Redireccion al cambio de password cuando el usuario lo requiera.
+   - Opciones nuevas en el menu de Help Desk.
+
+10. Se genero nuevamente el build del frontend con npm run build y se sincronizo el resultado al backend publico.
+
+11. Se copio y verifico el proyecto en el servidor:
+    Servidor: 172.30.11.13
+    Ruta: C:\portal_v2
+
+12. No se requirieron credenciales adicionales para copiar al servidor. El acceso por \\172.30.11.13\C$ funciono con el usuario actual.
+
+13. Se limpiaron caches y rutas de Laravel en el backend del servidor.
+
+14. Se verificaron rutas protegidas desde el servidor:
+    - /api/core/usuarios
+    - /api/hd/tickets
+
+    Ambas respondieron 401 Unauthorized en JSON cuando no hay sesion/token, lo cual es correcto. El frontend ya manda Accept: application/json, por lo que deberia trabajar correctamente despues del login.
+
+Estado actual:
+
+El despliegue quedo copiado y verificado en el servidor. La base de datos ya tiene los cambios necesarios ejecutados. El siguiente paso puede ser probar el flujo completo desde navegador con un usuario real: login, listado de usuarios, empleados, detalle de empleado, tickets reportados/asignados y reseteo de password.
+
+Pendientes sugeridos para el siguiente punto:
+
+- Validar permisos por rol para las nuevas vistas.
+- Probar el reseteo de password con un usuario real.
+- Revisar que los tickets se muestren correctamente segun quien los reporta y quien los atiende.
+- Confirmar que la asignacion de equipos por empleado muestre la informacion esperada.
+
+Fecha: 2026-04-29 - Ajuste flujo Help Desk
+
+Se ajusto el flujo de tickets para que el empleado solo capture lo necesario al levantar el ticket: area, empleado, sistema y descripcion. El problema, prioridad, area responsable, solucion, cierre y proveedor ahora quedan para soporte desde el detalle del ticket.
+
+Cambios realizados:
+
+1. El formulario de alta de ticket ya no pide problema, prioridad ni area responsable al empleado.
+
+2. El backend ahora completa automaticamente datos iniciales para que el ticket pueda guardarse:
+   - Area responsable desde el sistema seleccionado.
+   - Problema generico inicial cuando soporte aun no clasifica el caso.
+   - Prioridad MEDIA como valor inicial.
+
+3. En el detalle del ticket se agrego captura para soporte:
+   - Problema.
+   - Prioridad.
+   - Area responsable.
+   - Estatus.
+   - Categoria de solucion.
+   - Solucion o seguimiento.
+   - Boton para cerrar ticket.
+
+4. Se agrego flujo para enviar ticket a proveedor:
+   - Nuevo catalogo de proveedores en API.
+   - Nuevo endpoint PATCH /api/hd/tickets/{id}/proveedor.
+   - Campos nuevos en hd.ticket: ID_Proveedor, FechaEnvioProveedor y SeguimientoProveedor.
+   - Al enviar a proveedor se marca el ticket en estatus En espera si existe ese estatus.
+
+5. Se agrego historial de area responsable usando hd.ticket_asignacion_area cuando soporte cambia el area.
+
+6. Se genero el build del frontend con npm run build y se copio al backend publico.
+
+7. Se aplico el SQL nuevo directamente en la base del servidor 172.30.11.13.
+
+8. Se copio el proyecto actualizado al servidor C:\portal_v2 y se limpio cache de Laravel.
+
+Validaciones realizadas:
+
+- php -l sin errores en archivos PHP modificados.
+- npm run build correcto.
+- Laravel muestra la ruta nueva /api/hd/tickets/{id}/proveedor.
+- La base ya tiene las columnas ID_Proveedor, FechaEnvioProveedor y SeguimientoProveedor.
+- Las rutas protegidas responden 401 JSON sin sesion, comportamiento esperado.
+- El catalogo /api/catalogos/proveedores responde correctamente, aunque actualmente no tiene registros.
+
+Pendiente inmediato:
+
+Cargar o migrar proveedores a core.proveedor para que la opcion Enviar a proveedor tenga datos reales.
+
+Fecha: 2026-04-29 - Carga de proveedores legacy
+
+Se reviso la version anterior en C:\xampp\htdocs\tikets y el dump C:\xampp\htdocs\db_tiket_ti(1).sql para identificar los proveedores usados por Help Desk.
+
+Hallazgos:
+
+- La version anterior usaba el procedimiento sp_proveedores.
+- Los proveedores venian de la tabla externo.
+- El combo anterior usaba como valor el ID_Usuario del proveedor.
+
+Proveedores cargados en Portal V2:
+
+1. ID 205 - OSCAR PEREZ MUÑOZ - sapbo@empacadorarosarito.com.mx - 2292193202
+2. ID 206 - RAMON SIERRA VEGA - rsierra@sedis.app - 6641215443
+
+Acciones realizadas:
+
+- Se creo el script backend\database\sql\2026_04_29_seed_core_proveedores_legacy.sql.
+- Se aplico el script en la base portalV2 del servidor 172.30.11.13.
+- Se copio el script al servidor en C:\portal_v2\backend\database\sql.
+- Se verifico la tabla core.proveedor y el catalogo /api/catalogos/proveedores.
+
+Estado:
+
+El boton Enviar a proveedor ya debe mostrar opciones reales en el detalle del ticket.
+
+Fecha: 2026-04-29 - Empleados filtrados por area
+
+Se ajusto el alta de tickets para que el campo Empleado se cargue despues de seleccionar el area. Ahora el usuario primero elige el area y despues ve una lista filtrable con los empleados activos de esa area.
+
+Cambios realizados:
+
+- El campo Empleado dejo de ser busqueda libre y ahora es una lista filtrable dependiente del area.
+- El endpoint /api/catalogos/empleados acepta id_area y devuelve hasta 500 empleados cuando se solicita una lista por area.
+- Se genero nuevamente el build del frontend.
+- Se copio el cambio al servidor y se limpio cache de Laravel.
+
+Validacion:
+
+- /api/catalogos/areas responde correctamente.
+- /api/catalogos/empleados?id_area=1 devuelve empleados de SUCURSAL MEXICALI.
+
+Fecha: 2026-04-29 - Correccion error al registrar ticket
+
+Se atendio el error reportado al registrar ticket: Laravel no podia escribir en storage\logs\laravel.log por permisos y tambien aparecia Database connection [core] not configured.
+
+Correcciones realizadas:
+
+- Se otorgo permiso de modificacion a IIS_IUSRS e IUSR sobre backend\storage y backend\bootstrap\cache en el servidor.
+- Se ajusto Hd\TicketController para no usar reglas exists:core.tabla en el flujo de tickets, porque Laravel las interpreta como conexion core.
+- Las validaciones de existencia de empleado, area, sistema, estatus, proveedor, etc. ahora se hacen manualmente con DB::table usando el schema correcto.
+- Se copio el controlador corregido al servidor y se limpio cache de Laravel.
+
+Validacion:
+
+- Se creo un token temporal para probar el endpoint POST /api/hd/tickets.
+- Se envio una peticion invalida y respondio 422 normal: El valor seleccionado en Numero_Empleado no es valido.
+- No volvio a aparecer el error Database connection [core] not configured.
+- El token temporal fue eliminado.
+
+Fecha: 2026-04-29 - Correccion Carbon SLA
+
+Se corrigio un error al registrar ticket: Carbon\Carbon::rawAddUnit esperaba un entero o decimal, pero SQL Server devolvia HorasResolucion como texto.
+
+Correccion realizada:
+
+- En Hd\TicketController se casteo HorasResolucion a entero antes de llamar now()->addHours().
+- Se copio el controlador al servidor y se limpio cache Laravel.
+
+Validacion:
+
+- Se creo un ticket temporal desde POST /api/hd/tickets usando un token temporal.
+- El endpoint respondio 201 Ticket creado.
+- El ticket temporal, sus registros relacionados y el token temporal fueron eliminados.
+
+Fecha: 2026-04-29 - Ciclo correcto de estatus HD
+
+Se ajusto el flujo de cierre de tickets de Help Desk para que el estado avance de forma mas natural:
+
+- El ticket nace como Abierto al registrarlo.
+- Cuando soporte abre el detalle, el ticket pasa a En proceso.
+- Cuando se asigna un agente, el ticket pasa a Asignado.
+- El boton Cerrar ticket de soporte ahora cambia el ticket a Resuelto.
+- El empleado cierra realmente el ticket al enviar la encuesta de satisfaccion; en ese momento pasa a Cerrado.
+- Se agrego boton Cancelar para mandar el ticket a Cancelado.
+- Se corrigieron comparaciones de estatus para que no fallen por mayusculas/minusculas.
+- Se limpio el catalogo de estatus en SQL Server para quitar el duplicado Nuevo y dejar Abierto.
+
+Validacion:
+
+- php -l sin errores en TicketController y EncuestaController.
+- npm run build termino correctamente.
+- /api/catalogos/estatus-hd responde con Abierto, En proceso, Asignado, En espera, Resuelto, Cerrado y Cancelado.
+- Se copio el cambio al servidor 172.30.11.13 y se limpio cache de Laravel.
+
+Fecha: 2026-04-29 - Comentarios sin nota interna
+
+Se retiro del detalle del ticket el checkbox y la etiqueta Nota interna que aparecian debajo del area de comentarios.
+
+Resultado:
+
+- El usuario solo captura el comentario y presiona Enviar.
+- Los comentarios nuevos se guardan como comentarios normales.
+- Se genero build del frontend y se copio al servidor 172.30.11.13.
+
+Fecha: 2026-04-29 - Panel de notificaciones visible
+
+Se corrigio el panel de notificaciones de la campana. Antes se desplegaba hacia abajo dentro del sidebar y quedaba recortado por el contenedor.
+
+Cambios realizados:
+
+- El panel ahora se monta como flotante sobre la pagina, fuera del sidebar.
+- Calcula su posicion junto a la campana y abre hacia arriba cuando no tiene espacio abajo.
+- Mantiene scroll interno si hay muchas notificaciones.
+- Se genero build del frontend y se copio al servidor 172.30.11.13.
+
+Fecha: 2026-04-29 - Contraste de texto en notificaciones
+
+Se ajusto el color del texto secundario en el panel de notificaciones porque el gris anterior se veia muy claro.
+
+Resultado:
+
+- El mensaje de la notificacion ahora usa un gris mas oscuro.
+- La fecha conserva un tono secundario, pero con mejor contraste.
+- Se genero build del frontend y se copio al servidor 172.30.11.13.
+
+Fecha: 2026-04-29 - Titulo legible en notificaciones
+
+Se reforzo el contraste del panel de notificaciones completo porque el titulo de la notificacion seguia heredando estilos poco visibles.
+
+Cambios realizados:
+
+- El panel ahora fija fondo blanco y texto oscuro.
+- El encabezado Notificaciones y el titulo de cada notificacion usan color oscuro explicito.
+- Se ajustaron bordes y hover con tonos claros consistentes.
+- Se genero build del frontend y se copio al servidor 172.30.11.13.
+
+Fecha: 2026-04-29 - Area de origen y responsable en alta de tickets
+
+Se ajusto el alta de tickets para que las areas se asignen con la regla correcta.
+
+Cambios realizados:
+
+- El area de origen ahora se toma del empleado seleccionado en el ticket.
+- Si el empleado no tiene area, se usa como respaldo el area del usuario que lo levanta.
+- El area responsable ya no se toma del sistema ni del formulario al crear; queda por defecto en TECNOLOGIAS.
+- El area responsable se puede cambiar despues desde el detalle del ticket por parte de soporte.
+- El catalogo de empleados ahora devuelve tambien ID_Area.
+- En el formulario se cambio la etiqueta a Area del empleado para dejar claro que filtra la lista de empleados.
+
+Validacion:
+
+- php -l sin errores en TicketController y routes/api.php.
+- npm run build termino correctamente.
+- /api/catalogos/empleados?id_area=9 responde con empleados de TECNOLOGIAS e incluye ID_Area.
+- Se copio el cambio al servidor 172.30.11.13 y se limpio cache de Laravel.
+
+Fecha: 2026-04-29 - Hora local y boton Detalle
+
+Se corrigio el manejo de hora para que el portal use la zona local de Tijuana.
+
+Cambios realizados:
+
+- Laravel ahora toma APP_TIMEZONE=America/Tijuana.
+- Se agrego APP_TIMEZONE en el .env local y del servidor.
+- El modelo de tickets serializa las fechas en la zona configurada para evitar que el navegador las interprete como UTC.
+- El formateador del frontend muestra las fechas en America/Tijuana.
+- En la lista de tickets se cambio el icono de ojo por un boton mas visible: Detalle con flecha.
+
+Validacion:
+
+- php -l sin errores en config/app.php y app/Models/Hd/Ticket.php.
+- npm run build termino correctamente.
+- En servidor, php artisan tinker muestra now() en America/Tijuana.
+- Se copio el build al servidor 172.30.11.13 y se limpio cache de Laravel.
+
+Fecha: 2026-04-29 - Retiro de comentarios en detalle de ticket
+
+Se retiro la seccion completa de comentarios del detalle de ticket.
+
+Cambios realizados:
+
+- Ya no se muestra el card de Comentarios.
+- Se elimino el campo para capturar comentario en esa vista.
+- El detalle del ticket ya no consulta /comentarios al cargar, evitando llamadas innecesarias.
+- Se limpiaron imports y estilos que quedaron sin uso.
+- Se genero build del frontend y se copio al servidor 172.30.11.13.
+
+Fecha: 2026-04-29 - Mejora visual de filtros de tickets
+
+Se rediseño el bloque de filtros en la lista de tickets para que no se viera tan sencillo.
+
+Cambios realizados:
+
+- Se agrego encabezado de busqueda con boton Limpiar.
+- Cada filtro ahora tiene etiqueta e icono.
+- Los campos se acomodan en una grilla mas ordenada y responsiva.
+- El boton Buscar queda agrupado al final de los filtros.
+- Se agregaron estilos de tarjeta, borde y fondo suave.
+- Se genero build del frontend y se copio al servidor 172.30.11.13.
+
+Fecha: 2026-04-29 - Texto del login
+
+Se actualizo el texto que aparece debajo de ROSARITO SG2 en la pantalla de inicio de sesion.
+
+Nuevo texto:
+
+Plataforma interna para dar seguimiento a tickets, pedidos, recursos humanos y operaciones administrativas de la empresa.
+
+Se genero build del frontend y se copio al servidor 172.30.11.13.
+
+Fecha: 2026-04-29 - Login sin texto bajo ROSARITO SG2
+
+Se retiro por completo el parrafo que aparecia debajo de ROSARITO SG2 en la pantalla de inicio de sesion.
+
+Resultado:
+
+- En la columna izquierda del login solo queda el logo, Portal corporativo y ROSARITO SG2.
+- Se elimino el estilo del parrafo que ya no se usa.
+- Se genero build del frontend y se copio al servidor 172.30.11.13.
+
+Fecha: 2026-04-30 - Ajuste dimensiones sidebar
+
+Se reviso y ajusto la barra lateral izquierda del portal.
+
+Cambios realizados:
+
+- El ancho de escritorio bajo de 310px a 292px.
+- El ancho colapsado bajo de 92px a 84px.
+- El logo ahora cambia de tamano al colapsar para evitar recortes.
+- En pantallas medianas la barra usa 260px y colapsada 74px.
+- En movil la barra conserva 100% de ancho y no oculta textos del menu.
+- El footer colapsado acomoda los botones en columna para que no se amontonen.
+
+Validacion:
+
+- npm run build termino correctamente.
+- Se copio el build a backend/public para pruebas locales con Laravel.
+- Se copio el build al servidor 172.30.11.13 en C:\portal_v2\backend\public usando robocopy.
+
+Fecha: 2026-04-30 - Refinamiento sidebar colapsado
+
+Se ajusto nuevamente la barra lateral izquierda para mejorar el comportamiento visual al colapsar.
+
+Cambios realizados:
+
+- Al colapsar la barra se ocultan los nombres y quedan visibles solo los iconos.
+- El ancho colapsado bajo a 68px en escritorio y 64px en pantallas medianas.
+- El encabezado ahora muestra el logo arriba y el nombre ROSARITO SG2 debajo cuando la barra esta desplegada.
+- Los iconos del menu se resaltan con fondo y borde cuando la barra esta desplegada.
+- Los iconos de submenus tienen un estilo diferenciado para mejorar lectura.
+- En movil se mantiene el ancho completo y se conserva el texto del menu.
+
+Validacion:
+
+- npm run build termino correctamente.
+- Se copio el build a backend/public local.
+- Se copio el build al servidor 172.30.11.13 en C:\portal_v2\backend\public usando robocopy.
+
+Fecha: 2026-04-30 - Cierre publicacion Pedidos V2
+
+Se publico al servidor 172.30.11.13 la adecuacion del flujo Pedidos V2 y se valido contra API publicada.
+
+Validacion:
+
+- /api/health OK.
+- /api/ped/estados OK.
+- /api/ped/unidades OK.
+- /api/catalogos/articulos OK.
+- /api/ped/pedidos OK.
+- /api/ped/pedidos/por-autorizar OK.
+- /api/ped/pedidos/por-surtir OK.
+- /api/ped/mi-unidad OK.
+- /spa.html y assets principales de Pedidos OK.
+
+Pendiente:
+
+- Prueba funcional completa con usuarios reales de vendedor, supervisor/gerente y almacenista.
+
+Fecha: 2026-04-30 - Scripts paridad Pedidos V1 a V2
+
+Se reviso el respaldo C:\Users\ANALISTA BD\Downloads\db_tiket_ti(1).sql para preparar carga segura hacia Portal V2 sin pisar registros existentes.
+
+Validacion:
+
+- V1 contiene: 4 estados, 7 capacidades, 7 tipos de unidad, 2 tipos de articulo, 4 lineas, 8 grupos, 58 articulos, 8 sucursales, 211 usuarios, 115 unidades, 193 pedidos y 364 detalles.
+- V2 por API contiene: 4 estados, 4 unidades, 6 articulos, 8 sucursales, 4 usuarios y 0 pedidos.
+- Se confirmo que V2 ya tiene datos base, por lo que no conviene cargar el respaldo directo.
+
+Archivos generados:
+
+- backend/database/sql/pedidos_v2_validar_paridad_desde_v1.sql
+- backend/database/sql/pedidos_v2_carga_catalogos_desde_v1.sql
+- backend/database/sql/pedidos_v2_paridad_v1_v2.md
+
+Notas:
+
+- El script de validacion no modifica datos.
+- El script de carga no contiene UPDATE, DELETE, DROP ni ALTER; solo inserta faltantes.
+- Las unidades operacionales quedan como reporte porque dependen de usuarios V1 que no estan mapeados contra V2.
+- No se ejecuto la carga en base de datos; solo se prepararon y copiaron los archivos al servidor 172.30.11.13.
+
+Fecha: 2026-04-30 - Scripts paridad Pedidos V1 a V2
+
+Se reviso el respaldo C:\Users\ANALISTA BD\Downloads\db_tiket_ti(1).sql para preparar carga segura hacia Portal V2 sin pisar registros existentes.
+
+Validacion:
+
+- V1 contiene: 4 estados, 7 capacidades, 7 tipos de unidad, 2 tipos de articulo, 4 lineas, 8 grupos, 58 articulos, 8 sucursales, 211 usuarios, 115 unidades, 193 pedidos y 364 detalles.
+- V2 por API contiene: 4 estados, 4 unidades, 6 articulos, 8 sucursales, 4 usuarios y 0 pedidos.
+- Se confirmo que V2 ya tiene datos base, por lo que no conviene cargar el respaldo directo.
+
+Archivos generados:
+
+- backend/database/sql/pedidos_v2_validar_paridad_desde_v1.sql
+- backend/database/sql/pedidos_v2_carga_catalogos_desde_v1.sql
+- backend/database/sql/pedidos_v2_paridad_v1_v2.md
+
+Notas:
+
+- El script de validacion no modifica datos.
+- El script de carga no contiene UPDATE, DELETE, DROP ni ALTER; solo inserta faltantes.
+- Las unidades operacionales quedan como reporte porque dependen de usuarios V1 que no estan mapeados contra V2.
+- No se ejecuto la carga en base de datos; solo se prepararon y copiaron los archivos al servidor 172.30.11.13.
+
+Fecha: 2026-04-30 - Adecuacion flujo Pedidos V2
+
+Se implementaron los ajustes principales para que Pedidos V2 siga el flujo revisado en la version anterior: vendedor captura, supervisor/gerente autoriza y almacenista surte.
+
+Cambios realizados:
+
+- Backend Pedidos: se agregaron endpoints mi-unidad, por-autorizar, por-surtir, autorizar, surtir y cancelar.
+- La creacion del pedido ahora deriva unidad, supervisor, almacen y capacidad desde el usuario autenticado.
+- Se calcula folio y volumen del pedido; detalle conserva cantidades y volumen de pedido, autorizado y surtido.
+- La autorizacion permite ajustar cantidades autorizadas y actualiza encabezado, detalle, estado, fecha, observacion y log.
+- El surtido permite ajustar cantidades surtidas y actualiza encabezado, detalle, estado, fecha, observacion y log.
+- Frontend Pedidos: se agregaron bandejas Todos, Por autorizar y Por surtir.
+- Formulario de pedido: muestra unidad, supervisor, almacen y capacidad derivada del usuario; valida capacidad maxima.
+- Detalle de pedido: agrega acciones por etapa para autorizar, surtir y cancelar.
+- EstatusTag reconoce PENDIENTE/CAPTURADO, AUTORIZADO, SURTIDO y CANCELADO.
+
+Validacion:
+
+- php -l sin errores en PedidoController.php y routes/api.php.
+- php artisan route:list --path=api/ped muestra 12 rutas.
+- npm run build termino correctamente.
+- Se copio el build a backend/public local.
+- Se copiaron assets, spa.html, PedidoController.php y routes/api.php al servidor 172.30.11.13.
+- API servidor 172.30.11.13 responde correctamente:
+  - /api/health OK
+  - /api/ped/estados OK
+  - /api/ped/unidades OK
+  - /api/catalogos/articulos OK
+  - /api/ped/pedidos OK
+  - /api/ped/pedidos/por-autorizar OK
+  - /api/ped/pedidos/por-surtir OK
+  - /api/ped/mi-unidad OK
+- Archivos publicados del build responden por navegador: /spa.html, /assets/index-DzcdS24L.js, /assets/PedidosPage-CVcQY91-.js y /assets/PedidoDetalle-Dxid4XG-.js.
+
+Pendiente:
+
+- Probar un ciclo completo con usuario vendedor, supervisor/gerente y almacenista reales cuando haya datos autorizados para no insertar pedidos de prueba sin confirmacion operativa.
+
+Fecha: 2026-04-30 - Validacion modulo Pedidos
+
+Se valido el modulo de Pedidos en frontend, backend y API del servidor.
+
+Hallazgo:
+
+- El formulario de nuevo pedido filtraba unidades con coincidencia exacta por TipoNombre = VENDEDOR/SUPERVISOR/ALMACEN.
+- En servidor las unidades reales vienen como VENDEDOR TRADICIONAL y SUPERVISOR TRADICIONAL, por lo que no aparecian vendedores ni supervisores en los combos.
+
+Cambios realizados:
+
+- PedidoForm ahora clasifica unidades por coincidencia parcial y normalizada de TipoNombre.
+- PedidosPage y PedidoDetalle ahora cargan estados desde /ped/estados en vez de usar una lista fija.
+- PedidoController ahora evita regresar todos los pedidos si se filtra por un estado textual inexistente.
+
+Validacion:
+
+- php -l sin errores en PedidoController y modelos Ped.
+- php artisan route:list --path=api/ped muestra 6 rutas PED.
+- npm run build termino correctamente.
+- API servidor 172.30.11.13 responde:
+  - estados: 4 (PENDIENTE, AUTORIZADO, SURTIDO, CANCELADO)
+  - unidades: 4 (2 vendedores, 1 supervisor, 1 almacen)
+  - articulos: 6
+  - pedidos registrados: 0
+- Se copio PedidoController al servidor.
+- Se copio el build al servidor 172.30.11.13 en C:\portal_v2\backend\public usando robocopy.
+
+Fecha: 2026-04-30 - Inicio adecuacion flujo Pedidos V2
+
+Se reviso la version anterior en C:\xampp\htdocs\tikets y la copia de base db_tiket_ti(1).sql en Descargas para definir el flujo esperado de Pedidos.
+
+Alcance a implementar:
+
+- Vendedor crea pedido con unidad/supervisor/almacen derivados de su usuario.
+- Supervisor o gerente autoriza pedidos capturados y puede ajustar cantidades autorizadas.
+- Almacenista surte pedidos autorizados y puede registrar cantidades surtidas.
+- Separar cantidades/volumen por etapa: pedido, autorizado y surtido.
+- Agregar bandejas y endpoints especificos para por autorizar, por surtir, autorizar, surtir y cancelar.
+- Mantener bitacora, build y copia al servidor 172.30.11.13.
+
+Fecha: 2026-04-30 - Sidebar desplegado mas delgado
+
+Se ajusto el ancho de la barra lateral cuando esta desplegada.
+
+Cambios realizados:
+
+- El ancho desplegado bajo de 292px a 248px en escritorio.
+- En pantallas medianas bajo de 260px a 228px.
+- Se mantuvo el ancho colapsado de 56px/54px y el comportamiento de solo iconos.
+
+Validacion:
+
+- npm run build termino correctamente.
+- Se copio el build a backend/public local.
+- Se copio el build al servidor 172.30.11.13 en C:\portal_v2\backend\public usando robocopy.
+
+Fecha: 2026-04-30 - Sidebar colapsado solo iconos
+
+Se reforzo el comportamiento del sidebar colapsado.
+
+Cambios realizados:
+
+- El ancho colapsado bajo a 56px en escritorio y 54px en pantallas medianas.
+- Se agregaron selectores de PrimeVue 4 para ocultar correctamente textos del menu al colapsar.
+- Se ocultan labels de encabezados y opciones, dejando visibles solo los iconos.
+- Se mantuvo el resaltado visual de iconos cuando la barra esta desplegada.
+
+Validacion:
+
+- npm run build termino correctamente.
+- Se copio el build a backend/public local.
+- Se copio el build al servidor 172.30.11.13 en C:\portal_v2\backend\public usando robocopy.
+
+Fecha: 2026-04-30 - Cierre publicacion Pedidos V2
+
+Se publico al servidor 172.30.11.13 la adecuacion del flujo Pedidos V2 y se valido contra API publicada.
+
+Validacion:
+
+- /api/health OK.
+- /api/ped/estados OK.
+- /api/ped/unidades OK.
+- /api/catalogos/articulos OK.
+- /api/ped/pedidos OK.
+- /api/ped/pedidos/por-autorizar OK.
+- /api/ped/pedidos/por-surtir OK.
+- /api/ped/mi-unidad OK.
+- /spa.html y assets principales de Pedidos OK.
+
+Pendiente:
+
+- Prueba funcional completa con usuarios reales de vendedor, supervisor/gerente y almacenista.
+
+Fecha: 2026-04-30 - Scripts paridad Pedidos V1 a V2
+
+Se reviso el respaldo C:\Users\ANALISTA BD\Downloads\db_tiket_ti(1).sql para preparar carga segura hacia Portal V2 sin pisar registros existentes.
+
+Validacion:
+
+- V1 contiene: 4 estados, 7 capacidades, 7 tipos de unidad, 2 tipos de articulo, 4 lineas, 8 grupos, 58 articulos, 8 sucursales, 211 usuarios, 115 unidades, 193 pedidos y 364 detalles.
+- V2 por API contiene: 4 estados, 4 unidades, 6 articulos, 8 sucursales, 4 usuarios y 0 pedidos.
+- Se confirmo que V2 ya tiene datos base, por lo que no conviene cargar el respaldo directo.
+
+Archivos generados:
+
+- backend/database/sql/pedidos_v2_validar_paridad_desde_v1.sql
+- backend/database/sql/pedidos_v2_carga_catalogos_desde_v1.sql
+- backend/database/sql/pedidos_v2_paridad_v1_v2.md
+
+Notas:
+
+- El script de validacion no modifica datos.
+- El script de carga no contiene UPDATE, DELETE, DROP ni ALTER; solo inserta faltantes.
+- Las unidades operacionales quedan como reporte porque dependen de usuarios V1 que no estan mapeados contra V2.
+- No se ejecuto la carga en base de datos; solo se prepararon y copiaron los archivos al servidor 172.30.11.13.
+
+Fecha: 2026-04-30 - Ajuste carga catalogos Pedidos V1
+
+Se reviso el resultado del validador de paridad ejecutado por el usuario.
+
+Resultado interpretado:
+
+- ped.capacidaduv: faltan 7 capacidades de V1 por nombre.
+- ped.tipounidad: no faltan tipos de unidad.
+- ped.estado_pedido: falta 1 por nombre porque V1 usa Capturado y V2 usa PENDIENTE.
+- cat.articulo: faltan 58 articulos de V1.
+- ped.unidadoperacional: no debe cargarse automaticamente porque los usuarios V1 no existen en core.usuario V2 por Email; ST101 TIJUANA ya existe.
+
+Cambio aplicado:
+
+- Se ajusto backend/database/sql/pedidos_v2_carga_catalogos_desde_v1.sql para que NO inserte estados de pedido.
+- El script ahora solo reporta la equivalencia Capturado -> PENDIENTE.
+- Se copio el script ajustado al servidor 172.30.11.13.
+
+Siguiente paso recomendado:
+
+- Hacer respaldo de portalV2 y ejecutar la carga de catalogos para capacidades/articulos.
+- Despues mapear usuarios reales antes de insertar unidades operacionales.
+
+Fecha: 2026-04-30 - Limpieza validador paridad Pedidos
+
+Se reviso el resultado posterior a la carga de catalogos:
+
+- ped.capacidaduv quedo con faltantes 0.
+- cat.articulo quedo con faltantes 0.
+- ped.tipounidad ya estaba en faltantes 0.
+- ped.estado_pedido quedaba en 1 por comparacion literal, pero funcionalmente esta correcto por equivalencia Capturado -> PENDIENTE.
+
+Cambio aplicado:
+
+- Se ajusto backend/database/sql/pedidos_v2_validar_paridad_desde_v1.sql para calcular estados por equivalencia.
+- Se filtro el reporte de unidades para ocultar las que ya existen por nombre, como ST101 TIJUANA.
+- El validador sigue sin INSERT, UPDATE, DELETE, DROP, COMMIT, BEGIN TRAN ni IDENTITY_INSERT.
+- Se copio el validador actualizado al servidor 172.30.11.13.
+
+Fecha: 2026-04-30 - Resumen unidades pendientes Pedidos
+
+Se reviso el resultado posterior a la carga: catalogos ya quedaron en faltantes 0 y solo quedan unidades operacionales pendientes por mapeo de usuarios.
+
+Cambios realizados:
+
+- Se actualizo backend/database/sql/pedidos_v2_validar_paridad_desde_v1.sql para mostrar primero resumen de unidades por tipo/sucursal/correo.
+- Se conserva un detalle opcional de unidades pendientes para uso al mapear.
+- Se agrego backend/database/sql/pedidos_v2_mapeo_unidades_pendiente.sql como plantilla de captura manual para mapear unidades V1 contra usuarios reales V2.
+- Se copiaron los scripts actualizados al servidor 172.30.11.13.
+
+Estado:
+
+- Catalogos PED/CAT listos.
+- Pendiente definir usuarios reales V2 para vendedores, supervisores/gerentes y almacenistas antes de cargar unidades operacionales.
+
+Fecha: 2026-04-30 - Correccion plantilla mapeo unidades
+
+El archivo pedidos_v2_mapeo_unidades_pendiente.sql estaba funcionando como plantilla vacia, por eso no mostraba resultados.
+
+Cambio realizado:
+
+- Se regenero el script con datos de unidades, usuarios, tipos de unidad y capacidades extraidos de db_tiket_ti(1).sql.
+- El script ahora muestra resumen y detalle de unidades V1 pendientes de mapear contra usuarios V2.
+- La capacidad se mapea por nombre y no por ID para evitar cruces incorrectos con las capacidades ya existentes en V2.
+- El script sigue siendo de solo lectura; no inserta, actualiza ni elimina datos reales.
+- Se copio el script corregido al servidor 172.30.11.13.
+
+Fecha: 2026-04-30 - Pausa por mapeo de usuarios Pedidos
+
+Estado actual del modulo Pedidos:
+
+- Catalogos de capacidades, tipos de unidad, estados y articulos quedaron validados.
+- La carga incremental desde V1 dejo los faltantes de catalogos en 0.
+- El validador de paridad ya calcula estados por equivalencia Capturado -> PENDIENTE.
+- El pendiente activo es mapear o crear usuarios V2 para unidades operacionales.
+
+Decision operativa:
+
+- El usuario trabajara en las cuentas de usuarios.
+- No se cargaran unidades operacionales hasta definir usuarios reales o funcionales para vendedor, supervisor/gerente y almacenista.
+- Recomendacion pendiente: iniciar con Tijuana completo, validar flujo vendedor -> supervisor/gerente -> almacenista, y despues replicar a otras sucursales.
+
+Fecha: 2026-04-30 - Analisis roles y permisos Pedidos V1 a V2
+
+Se analizo la version anterior en C:\xampp\htdocs\tikets para identificar que muestra y permite por rol de usuario.
+
+Hallazgos:
+
+- V1 usa $_SESSION['rol'] directamente, no una matriz formal de permisos para pedidos.
+- VENDEDOR entra a captura de pedido.
+- SUPERVISOR y GERENTE entran al dashboard de pedidos capturados para autorizar.
+- ALMACEN entra al dashboard de pedidos autorizados para surtir y generar CSV.
+- El alcance operativo depende de unidadoperacional: vendedor por unidad, supervisor por IdSupervisor, gerente por sucursal y almacen por IdAlmacen.
+
+Revision V2:
+
+- Existen tablas core.rol, core.permiso y core.rol_permiso.
+- El login de V2 devuelve rol, pero aun no devuelve permisos.
+- El frontend aun muestra menu fijo, sin filtrar por permisos.
+- Pedidos V2 ya conserva parte del alcance por unidad/sucursal en backend, pero falta amarrarlo a permisos formales.
+
+Documento generado:
+
+- backend/database/sql/pedidos_v2_roles_permisos_analisis.md
+
+Recomendacion:
+
+- Usar core.rol_permiso para definir que puede hacer cada rol y mantener el alcance de datos en Pedidos por unidad/sucursal.
+- Implementar permisos como ped.pedidos.crear, ped.pedidos.autorizar, ped.pedidos.surtir, ped.pedidos.cancelar, ped.pedidos.csv, entre otros.
+- Primero terminar el mapeo de usuarios V2; despues cargar permisos y aplicar filtros en backend/frontend.

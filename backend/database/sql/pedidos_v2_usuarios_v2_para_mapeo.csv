@@ -1,0 +1,5 @@
+"ID_Usuario","Nombre","Email","Rol","Area","Activo"
+"1","ADMIN PORTAL V2","admin@portalv2.local","ADMINISTRADOR","TECNOLOGIAS","True"
+"4","GERENTE COMERCIAL","gerente@portalv2.local","GERENTE","COMERCIAL","True"
+"3","GENERALISTA RH","rh@portalv2.local","RH","RECURSOS HUMANOS","True"
+"2","SOPORTE HELP DESK","soporte@portalv2.local","SOPORTE HD","TECNOLOGIAS","True"

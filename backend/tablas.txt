@@ -1,0 +1,764 @@
+CREATE TABLE `area` (
+  `ID_Area` int(11) NOT NULL,
+  `Nombre` varchar(50) NOT NULL,
+  `Activo` tinyint(1) NOT NULL DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `articulos` (
+  `IdArticulo` int(11) NOT NULL,
+  `Nombre` varchar(120) NOT NULL,
+  `NombreCorto` varchar(40) DEFAULT NULL,
+  `IdTipoArticulo` int(11) NOT NULL,
+  `Peso` decimal(12,3) DEFAULT NULL,
+  `bloke` tinyint(4) DEFAULT NULL,
+  `IdGrupoArticulo` int(11) NOT NULL,
+  `activo` tinyint(1) NOT NULL DEFAULT 1,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `created_by` int(11) DEFAULT NULL,
+  `updated_by` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `capacidaduv` (
+  `IdCapacidadUV` int(11) NOT NULL,
+  `Nombre` varchar(80) NOT NULL,
+  `Descripcion` varchar(200) DEFAULT NULL,
+  `CapacidadMaxima` int(11) DEFAULT NULL,
+  `CapacidadMinima` int(11) DEFAULT NULL,
+  `activo` tinyint(1) NOT NULL DEFAULT 1,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `created_by` int(11) DEFAULT NULL,
+  `updated_by` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `comentario` (
+  `ID_Comentario` int(11) NOT NULL,
+  `ID_Tiket` int(11) NOT NULL,
+  `ID_Usuario` int(11) NOT NULL,
+  `Mensaje` text NOT NULL,
+  `Fecha` datetime NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `empleado` (
+  `Numero_Empleado` int(10) NOT NULL,
+  `Nombre` varchar(100) NOT NULL,
+  `Correo` varchar(100) DEFAULT NULL,
+  `Extencion` varchar(10) DEFAULT NULL,
+  `Telefono` varchar(20) DEFAULT NULL,
+  `UsuarioAnyDesk` varchar(255) DEFAULT NULL,
+  `ClaveAnyDesk` varchar(255) DEFAULT NULL,
+  `UsuarioSAP` varchar(255) DEFAULT NULL,
+  `ClaveSAP` varchar(255) DEFAULT NULL,
+  `ClaveCorreo` varchar(255) DEFAULT NULL,
+  `ID_Sucursal` int(11) DEFAULT NULL,
+  `ID_Puesto` int(11) DEFAULT NULL,
+  `ID_Usuario` int(11) DEFAULT NULL,
+  `ID_Area` int(11) DEFAULT NULL,
+  `CreateDate` datetime NOT NULL DEFAULT current_timestamp(),
+  `UpdateDate` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `Active` tinyint(1) NOT NULL DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `empleado_equipo` (
+  `ID` int(11) NOT NULL,
+  `Numero_Empleado` int(11) NOT NULL,
+  `ID_Equipo` int(11) NOT NULL,
+  `FechaAsignacion` datetime DEFAULT current_timestamp(),
+  `FechaLiberacion` datetime DEFAULT NULL,
+  `Activo` tinyint(4) DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `encuesta_tiket` (
+  `id_encuesta` int(11) NOT NULL,
+  `id_tiket` int(11) NOT NULL,
+  `calificacion` int(11) DEFAULT NULL CHECK (`calificacion` between 1 and 5),
+  `comentarios` text DEFAULT NULL,
+  `fecha` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `equipo` (
+  `ID_Equipo` int(11) NOT NULL,
+  `ID_TipoEquipo` int(11) NOT NULL,
+  `Marca` varchar(50) DEFAULT NULL,
+  `Modelo` varchar(50) DEFAULT NULL,
+  `NumeroSerie` varchar(100) DEFAULT NULL,
+  `IPDireccion` varchar(15) DEFAULT NULL,
+  `MacDireccion` varchar(17) DEFAULT NULL,
+  `NuActvoFijo` varchar(30) DEFAULT NULL,
+  `SistemaOperativo` varchar(50) DEFAULT NULL,
+  `Descripcion` text DEFAULT NULL,
+  `FechaCompra` date DEFAULT NULL,
+  `ClaveUsuarioWindows` varchar(255) DEFAULT NULL,
+  `Active` tinyint(4) DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `error` (
+  `ID_Error` int(11) NOT NULL,
+  `Descripcion` text NOT NULL,
+  `Active` tinyint(1) NOT NULL DEFAULT 1,
+  `Tipo` int(11) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `estado_pedido` (
+  `IdEstado` int(11) NOT NULL,
+  `Nombre` varchar(60) NOT NULL,
+  `Descripcion` varchar(200) DEFAULT NULL,
+  `activo` tinyint(1) NOT NULL DEFAULT 1,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `created_by` int(11) DEFAULT NULL,
+  `updated_by` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `estatus` (
+  `ID_Estatus` int(11) NOT NULL,
+  `Nombre` varchar(50) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `externo` (
+  `ID_externo` int(11) NOT NULL,
+  `Nombre` varchar(50) NOT NULL,
+  `Correo` varchar(100) NOT NULL,
+  `Telefono` varchar(20) DEFAULT NULL,
+  `ID_Usuario` int(11) DEFAULT NULL,
+  `created_at` datetime DEFAULT current_timestamp(),
+  `updated_at` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `created_by` int(11) DEFAULT NULL,
+  `updated_by` int(11) DEFAULT NULL,
+  `active` tinyint(1) DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `foliodiario` (
+  `fecha` date NOT NULL,
+  `consecutivo` int(11) NOT NULL DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `foliodiariopedido` (
+  `fecha` date NOT NULL,
+  `consecutivo` int(11) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `grupo_articulo` (
+  `IdGrupoArticulo` int(11) NOT NULL,
+  `IdLineaArticulo` int(11) NOT NULL,
+  `Nombre` varchar(60) NOT NULL,
+  `Descripcion` varchar(200) DEFAULT NULL,
+  `activo` tinyint(1) NOT NULL DEFAULT 1,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `created_by` int(11) DEFAULT NULL,
+  `updated_by` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `linea_articulo` (
+  `IdLineaArticulo` int(11) NOT NULL,
+  `Nombre` varchar(60) NOT NULL,
+  `Descripcion` varchar(200) DEFAULT NULL,
+  `activo` tinyint(1) NOT NULL DEFAULT 1,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `created_by` int(11) DEFAULT NULL,
+  `updated_by` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `login` (
+  `ID_Login` int(11) NOT NULL,
+  `Cuenta` varchar(70) NOT NULL,
+  `PasswordHash` varchar(512) NOT NULL,
+  `IntentosFallidos` int(11) NOT NULL DEFAULT 0,
+  `ID_Usuario` int(11) NOT NULL,
+  `FechaCreacion` datetime NOT NULL DEFAULT current_timestamp(),
+  `FechaActualizacion` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `SesionID` varchar(100) DEFAULT NULL,
+  `Activo` tinyint(1) NOT NULL DEFAULT 1,
+  `DebeCambiarPassword` tinyint(1) NOT NULL DEFAULT 1,
+  `UltimoCambioPassword` datetime DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `password_resets` (
+  `id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `token` varchar(64) NOT NULL,
+  `expires_at` datetime NOT NULL,
+  `used` tinyint(1) NOT NULL DEFAULT 0,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `pedidos` (
+  `IdPedido` int(11) NOT NULL,
+  `FolioPedido` varchar(40) DEFAULT NULL,
+  `IdEstado` int(11) NOT NULL,
+  `IdCapacidadUV` int(11) NOT NULL,
+  `IdUnidadPedido` int(11) NOT NULL,
+  `IdSupervisor` int(11) NOT NULL,
+  `IdAlmacen` int(11) NOT NULL,
+  `Registros` int(11) DEFAULT NULL,
+  `Dia` enum('lu','ma','mi','ju','vi','sa') DEFAULT NULL,
+  `Semana` tinyint(3) UNSIGNED DEFAULT NULL,
+  `PedVolPed` decimal(12,3) DEFAULT NULL,
+  `PedVolApr` decimal(12,3) DEFAULT NULL,
+  `PedVolSur` decimal(12,3) DEFAULT NULL,
+  `FechaPedido` datetime DEFAULT NULL,
+  `FechaAutorizacion` datetime DEFAULT NULL,
+  `FechaSurtido` datetime DEFAULT NULL,
+  `ObserVen` varchar(100) DEFAULT NULL,
+  `ObserSup` varchar(100) DEFAULT NULL,
+  `ObserAlm` varchar(100) DEFAULT NULL,
+  `activo` tinyint(1) NOT NULL DEFAULT 1,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `created_by` int(11) DEFAULT NULL,
+  `updated_by` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `pedido_detalle` (
+  `IdPedido` int(11) NOT NULL,
+  `FolioPedido` varchar(40) DEFAULT NULL,
+  `IdArticulo` int(11) NOT NULL,
+  `Registro` smallint(5) UNSIGNED NOT NULL,
+  `CanPzPed` int(11) NOT NULL,
+  `VolPed` decimal(12,3) NOT NULL,
+  `CanPzApr` int(11) DEFAULT NULL,
+  `VolApr` decimal(12,3) DEFAULT NULL,
+  `CanPzSur` int(11) DEFAULT NULL,
+  `VolSur` decimal(12,3) DEFAULT NULL,
+  `activo` tinyint(1) NOT NULL DEFAULT 1,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `created_by` int(11) DEFAULT NULL,
+  `updated_by` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `pedido_estado_log` (
+  `IdLog` bigint(20) NOT NULL,
+  `IdPedido` int(11) NOT NULL,
+  `IdEstado` int(11) NOT NULL,
+  `CambioPor` int(11) DEFAULT NULL,
+  `Notas` varchar(500) DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `puesto` (
+  `ID_Puesto` int(11) NOT NULL,
+  `Descripcion` varchar(100) NOT NULL,
+  `Active` tinyint(1) NOT NULL DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `rol` (
+  `ID_Rol` int(11) NOT NULL,
+  `Nombre` varchar(50) NOT NULL,
+  `Activo` tinyint(1) NOT NULL DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `sistema` (
+  `ID_Sistema` int(11) NOT NULL,
+  `Nombre` varchar(100) NOT NULL,
+  `Descripcion` text DEFAULT NULL,
+  `Active` tinyint(1) NOT NULL DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `solucion` (
+  `ID_Solucion` int(11) NOT NULL,
+  `Descripcion` text NOT NULL,
+  `Active` tinyint(1) NOT NULL DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `sucursal` (
+  `ID_Sucursal` int(11) NOT NULL,
+  `Nombre` varchar(100) NOT NULL,
+  `Ciudad` varchar(100) DEFAULT NULL,
+  `Active` tinyint(1) NOT NULL DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `tiket` (
+  `ID_Tiket` int(11) NOT NULL,
+  `SerieFolio` varchar(20) DEFAULT NULL,
+  `Numero_Empleado` int(11) NOT NULL,
+  `ID_Sistema` int(11) NOT NULL,
+  `ID_Error` int(11) NOT NULL,
+  `Descripcion` text NOT NULL,
+  `FechaReporte` datetime NOT NULL DEFAULT current_timestamp(),
+  `FechaAsignacion` datetime DEFAULT NULL,
+  `FechaSolucion` datetime DEFAULT NULL,
+  `ID_Solucion` int(11) DEFAULT NULL,
+  `detalle_solucion` text DEFAULT NULL,
+  `ID_Soporte` int(11) DEFAULT NULL,
+  `ID_Estatus` int(11) DEFAULT NULL,
+  `CreateDate` datetime NOT NULL DEFAULT current_timestamp(),
+  `UpdateDate` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `Active` tinyint(1) NOT NULL DEFAULT 1,
+  `ID_Usuario_Cierra` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `tipounidad` (
+  `IdTipoUnidad` int(11) NOT NULL,
+  `Nombre` varchar(80) NOT NULL,
+  `Descripcion` varchar(200) DEFAULT NULL,
+  `activo` tinyint(1) NOT NULL DEFAULT 1,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `created_by` int(11) DEFAULT NULL,
+  `updated_by` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `tipo_articulo` (
+  `IdTipoArticulo` int(11) NOT NULL,
+  `Nombre` varchar(60) NOT NULL,
+  `Medida` varchar(30) DEFAULT NULL,
+  `activo` tinyint(1) NOT NULL DEFAULT 1,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `created_by` int(11) DEFAULT NULL,
+  `updated_by` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `tipo_equipo` (
+  `ID_TipoEquipo` int(11) NOT NULL,
+  `Nombre` varchar(50) NOT NULL,
+  `Descripcion` varchar(200) DEFAULT NULL,
+  `Active` tinyint(4) DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `unidadoperacional` (
+  `IdUnidad` int(11) NOT NULL,
+  `IdTipoUnidad` int(11) NOT NULL,
+  `IdUsuario` int(11) NOT NULL,
+  `IdSupervisor` int(11) DEFAULT NULL,
+  `IdSucursal` int(11) DEFAULT NULL,
+  `IdCapacidadUV` int(11) NOT NULL,
+  `Nombre` varchar(100) NOT NULL,
+  `Descripcion` varchar(200) DEFAULT NULL,
+  `activo` tinyint(1) NOT NULL DEFAULT 1,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `created_by` int(11) DEFAULT NULL,
+  `updated_by` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `usuario` (
+  `ID_Usuario` int(11) NOT NULL,
+  `Nombre` varchar(50) NOT NULL,
+  `Email` varchar(100) NOT NULL,
+  `FotoURL` varchar(255) DEFAULT NULL,
+  `ID_Rol` int(11) DEFAULT NULL,
+  `ID_Area` int(11) DEFAULT NULL,
+  `FechaCreacion` datetime NOT NULL DEFAULT current_timestamp(),
+  `FechaActualizacion` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `Activo` tinyint(1) NOT NULL DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+--
+-- Indices de la tabla `area`
+--
+ALTER TABLE `area`
+  ADD PRIMARY KEY (`ID_Area`);
+
+--
+-- Indices de la tabla `articulos`
+--
+ALTER TABLE `articulos`
+  ADD PRIMARY KEY (`IdArticulo`),
+  ADD KEY `ix_articulos_tipo` (`IdTipoArticulo`),
+  ADD KEY `ix_articulos_grupo` (`IdGrupoArticulo`);
+
+--
+-- Indices de la tabla `capacidaduv`
+--
+ALTER TABLE `capacidaduv`
+  ADD PRIMARY KEY (`IdCapacidadUV`),
+  ADD KEY `idx_capUV_activo` (`activo`);
+
+--
+-- Indices de la tabla `comentario`
+--
+ALTER TABLE `comentario`
+  ADD PRIMARY KEY (`ID_Comentario`),
+  ADD KEY `ID_Tiket` (`ID_Tiket`),
+  ADD KEY `ID_Usuario` (`ID_Usuario`);
+
+--
+-- Indices de la tabla `empleado`
+--
+ALTER TABLE `empleado`
+  ADD PRIMARY KEY (`Numero_Empleado`),
+  ADD KEY `ID_Sucursal` (`ID_Sucursal`),
+  ADD KEY `ID_Puesto` (`ID_Puesto`),
+  ADD KEY `ID_Usuario` (`ID_Usuario`),
+  ADD KEY `ID_Area` (`ID_Area`);
+
+--
+-- Indices de la tabla `empleado_equipo`
+--
+ALTER TABLE `empleado_equipo`
+  ADD PRIMARY KEY (`ID`),
+  ADD KEY `Numero_Empleado` (`Numero_Empleado`),
+  ADD KEY `ID_Equipo` (`ID_Equipo`);
+
+--
+-- Indices de la tabla `encuesta_tiket`
+--
+ALTER TABLE `encuesta_tiket`
+  ADD PRIMARY KEY (`id_encuesta`),
+  ADD KEY `id_tiket` (`id_tiket`);
+
+--
+-- Indices de la tabla `equipo`
+--
+ALTER TABLE `equipo`
+  ADD PRIMARY KEY (`ID_Equipo`),
+  ADD UNIQUE KEY `NumeroSerie` (`NumeroSerie`),
+  ADD KEY `ID_TipoEquipo` (`ID_TipoEquipo`),
+  ADD KEY `idx_equipo_ip` (`IPDireccion`),
+  ADD KEY `idx_equipo_mac` (`MacDireccion`),
+  ADD KEY `idx_equipo_activo_fijo` (`NuActvoFijo`);
+
+--
+-- Indices de la tabla `error`
+--
+ALTER TABLE `error`
+  ADD PRIMARY KEY (`ID_Error`);
+
+--
+-- Indices de la tabla `estado_pedido`
+--
+ALTER TABLE `estado_pedido`
+  ADD PRIMARY KEY (`IdEstado`),
+  ADD UNIQUE KEY `ux_estado_nombre` (`Nombre`);
+
+--
+-- Indices de la tabla `estatus`
+--
+ALTER TABLE `estatus`
+  ADD PRIMARY KEY (`ID_Estatus`);
+
+--
+-- Indices de la tabla `externo`
+--
+ALTER TABLE `externo`
+  ADD PRIMARY KEY (`ID_externo`),
+  ADD KEY `fk_externo_usuario` (`ID_Usuario`);
+
+--
+-- Indices de la tabla `foliodiario`
+--
+ALTER TABLE `foliodiario`
+  ADD PRIMARY KEY (`fecha`);
+
+--
+-- Indices de la tabla `foliodiariopedido`
+--
+ALTER TABLE `foliodiariopedido`
+  ADD PRIMARY KEY (`fecha`);
+
+--
+-- Indices de la tabla `login`
+--
+ALTER TABLE `login`
+  ADD PRIMARY KEY (`ID_Login`),
+  ADD UNIQUE KEY `Cuenta` (`Cuenta`),
+  ADD KEY `ID_Usuario` (`ID_Usuario`);
+
+--
+-- Indices de la tabla `password_resets`
+--
+ALTER TABLE `password_resets`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `token` (`token`),
+  ADD KEY `user_id` (`user_id`);
+
+--
+-- Indices de la tabla `pedidos`
+--
+ALTER TABLE `pedidos`
+  ADD PRIMARY KEY (`IdPedido`),
+  ADD UNIQUE KEY `FolioPedido` (`FolioPedido`),
+  ADD KEY `idx_pedido_estado` (`IdEstado`),
+  ADD KEY `idx_pedido_capUV` (`IdCapacidadUV`),
+  ADD KEY `idx_pedido_unidad` (`IdUnidadPedido`),
+  ADD KEY `idx_pedido_supervisor` (`IdSupervisor`),
+  ADD KEY `idx_pedido_almacen` (`IdAlmacen`),
+  ADD KEY `idx_pedido_semana` (`Semana`),
+  ADD KEY `idx_pedido_fechas` (`FechaPedido`,`FechaAutorizacion`,`FechaSurtido`),
+  ADD KEY `idx_pedido_activo` (`activo`);
+
+--
+-- Indices de la tabla `pedido_detalle`
+--
+ALTER TABLE `pedido_detalle`
+  ADD KEY `fk_det_pedido` (`IdPedido`),
+  ADD KEY `fk_det_articulo` (`IdArticulo`);
+
+--
+-- Indices de la tabla `puesto`
+--
+ALTER TABLE `puesto`
+  ADD PRIMARY KEY (`ID_Puesto`);
+
+--
+-- Indices de la tabla `rol`
+--
+ALTER TABLE `rol`
+  ADD PRIMARY KEY (`ID_Rol`);
+
+--
+-- Indices de la tabla `sistema`
+--
+ALTER TABLE `sistema`
+  ADD PRIMARY KEY (`ID_Sistema`);
+
+--
+-- Indices de la tabla `solucion`
+--
+ALTER TABLE `solucion`
+  ADD PRIMARY KEY (`ID_Solucion`);
+
+--
+-- Indices de la tabla `sucursal`
+--
+ALTER TABLE `sucursal`
+  ADD PRIMARY KEY (`ID_Sucursal`);
+
+--
+-- Indices de la tabla `tiket`
+--
+ALTER TABLE `tiket`
+  ADD PRIMARY KEY (`ID_Tiket`),
+  ADD KEY `Numero_Empleado` (`Numero_Empleado`),
+  ADD KEY `ID_Sistema` (`ID_Sistema`),
+  ADD KEY `ID_Error` (`ID_Error`),
+  ADD KEY `ID_Solucion` (`ID_Solucion`),
+  ADD KEY `ID_Soporte` (`ID_Soporte`),
+  ADD KEY `ID_Estatus` (`ID_Estatus`);
+
+--
+-- Indices de la tabla `tipounidad`
+--
+ALTER TABLE `tipounidad`
+  ADD PRIMARY KEY (`IdTipoUnidad`);
+
+--
+-- Indices de la tabla `tipo_equipo`
+--
+ALTER TABLE `tipo_equipo`
+  ADD PRIMARY KEY (`ID_TipoEquipo`);
+
+--
+-- Indices de la tabla `unidadoperacional`
+--
+ALTER TABLE `unidadoperacional`
+  ADD PRIMARY KEY (`IdUnidad`),
+  ADD KEY `fk_uo_tipounidad` (`IdTipoUnidad`),
+  ADD KEY `fk_uo_capUV` (`IdCapacidadUV`),
+  ADD KEY `fk_uo_sucursal` (`IdSucursal`),
+  ADD KEY `fk_uo_usuario` (`IdUsuario`),
+  ADD KEY `fk_uo_supervisor` (`IdSupervisor`);
+
+--
+-- Indices de la tabla `usuario`
+--
+ALTER TABLE `usuario`
+  ADD PRIMARY KEY (`ID_Usuario`),
+  ADD KEY `ID_Rol` (`ID_Rol`),
+  ADD KEY `ID_Area` (`ID_Area`);
+
+--
+-- AUTO_INCREMENT de las tablas volcadas
+--
+
+--
+-- AUTO_INCREMENT de la tabla `area`
+--
+ALTER TABLE `area`
+  MODIFY `ID_Area` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=55;
+
+--
+-- AUTO_INCREMENT de la tabla `comentario`
+--
+ALTER TABLE `comentario`
+  MODIFY `ID_Comentario` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT de la tabla `empleado_equipo`
+--
+ALTER TABLE `empleado_equipo`
+  MODIFY `ID` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT de la tabla `encuesta_tiket`
+--
+ALTER TABLE `encuesta_tiket`
+  MODIFY `id_encuesta` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1067;
+
+--
+-- AUTO_INCREMENT de la tabla `equipo`
+--
+ALTER TABLE `equipo`
+  MODIFY `ID_Equipo` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT de la tabla `error`
+--
+ALTER TABLE `error`
+  MODIFY `ID_Error` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=57;
+
+--
+-- AUTO_INCREMENT de la tabla `estatus`
+--
+ALTER TABLE `estatus`
+  MODIFY `ID_Estatus` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+
+--
+-- AUTO_INCREMENT de la tabla `externo`
+--
+ALTER TABLE `externo`
+  MODIFY `ID_externo` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+
+--
+-- AUTO_INCREMENT de la tabla `login`
+--
+ALTER TABLE `login`
+  MODIFY `ID_Login` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=425;
+
+--
+-- AUTO_INCREMENT de la tabla `password_resets`
+--
+ALTER TABLE `password_resets`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=187;
+
+--
+-- AUTO_INCREMENT de la tabla `pedidos`
+--
+ALTER TABLE `pedidos`
+  MODIFY `IdPedido` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3857;
+
+--
+-- AUTO_INCREMENT de la tabla `puesto`
+--
+ALTER TABLE `puesto`
+  MODIFY `ID_Puesto` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=81;
+
+--
+-- AUTO_INCREMENT de la tabla `rol`
+--
+ALTER TABLE `rol`
+  MODIFY `ID_Rol` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+
+--
+-- AUTO_INCREMENT de la tabla `sistema`
+--
+ALTER TABLE `sistema`
+  MODIFY `ID_Sistema` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
+
+--
+-- AUTO_INCREMENT de la tabla `solucion`
+--
+ALTER TABLE `solucion`
+  MODIFY `ID_Solucion` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
+
+--
+-- AUTO_INCREMENT de la tabla `tiket`
+--
+ALTER TABLE `tiket`
+  MODIFY `ID_Tiket` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1100;
+
+--
+-- AUTO_INCREMENT de la tabla `tipo_equipo`
+--
+ALTER TABLE `tipo_equipo`
+  MODIFY `ID_TipoEquipo` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+
+--
+-- Restricciones para tablas volcadas
+--
+
+--
+-- Filtros para la tabla `comentario`
+--
+ALTER TABLE `comentario`
+  ADD CONSTRAINT `comentario_ibfk_1` FOREIGN KEY (`ID_Tiket`) REFERENCES `tiket` (`ID_Tiket`),
+  ADD CONSTRAINT `comentario_ibfk_2` FOREIGN KEY (`ID_Usuario`) REFERENCES `usuario` (`ID_Usuario`);
+
+--
+-- Filtros para la tabla `empleado`
+--
+ALTER TABLE `empleado`
+  ADD CONSTRAINT `empleado_ibfk_1` FOREIGN KEY (`ID_Sucursal`) REFERENCES `sucursal` (`ID_Sucursal`),
+  ADD CONSTRAINT `empleado_ibfk_2` FOREIGN KEY (`ID_Puesto`) REFERENCES `puesto` (`ID_Puesto`),
+  ADD CONSTRAINT `empleado_ibfk_3` FOREIGN KEY (`ID_Usuario`) REFERENCES `usuario` (`ID_Usuario`),
+  ADD CONSTRAINT `empleado_ibfk_4` FOREIGN KEY (`ID_Area`) REFERENCES `area` (`ID_Area`);
+
+--
+-- Filtros para la tabla `empleado_equipo`
+--
+ALTER TABLE `empleado_equipo`
+  ADD CONSTRAINT `empleado_equipo_ibfk_1` FOREIGN KEY (`Numero_Empleado`) REFERENCES `empleado` (`Numero_Empleado`),
+  ADD CONSTRAINT `empleado_equipo_ibfk_2` FOREIGN KEY (`ID_Equipo`) REFERENCES `equipo` (`ID_Equipo`);
+
+--
+-- Filtros para la tabla `encuesta_tiket`
+--
+ALTER TABLE `encuesta_tiket`
+  ADD CONSTRAINT `encuesta_tiket_ibfk_1` FOREIGN KEY (`id_tiket`) REFERENCES `tiket` (`ID_Tiket`);
+
+--
+-- Filtros para la tabla `equipo`
+--
+ALTER TABLE `equipo`
+  ADD CONSTRAINT `equipo_ibfk_1` FOREIGN KEY (`ID_TipoEquipo`) REFERENCES `tipo_equipo` (`ID_TipoEquipo`);
+
+--
+-- Filtros para la tabla `externo`
+--
+ALTER TABLE `externo`
+  ADD CONSTRAINT `fk_externo_usuario` FOREIGN KEY (`ID_Usuario`) REFERENCES `usuario` (`ID_Usuario`);
+
+--
+-- Filtros para la tabla `login`
+--
+ALTER TABLE `login`
+  ADD CONSTRAINT `login_ibfk_1` FOREIGN KEY (`ID_Usuario`) REFERENCES `usuario` (`ID_Usuario`);
+
+--
+-- Filtros para la tabla `pedidos`
+--
+ALTER TABLE `pedidos`
+  ADD CONSTRAINT `fk_pedido_almacen` FOREIGN KEY (`IdAlmacen`) REFERENCES `unidadoperacional` (`IdUnidad`) ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_pedido_capUV` FOREIGN KEY (`IdCapacidadUV`) REFERENCES `capacidaduv` (`IdCapacidadUV`) ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_pedido_estado` FOREIGN KEY (`IdEstado`) REFERENCES `estado_pedido` (`IdEstado`) ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_pedido_supervisor` FOREIGN KEY (`IdSupervisor`) REFERENCES `unidadoperacional` (`IdUnidad`) ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_pedido_unidad` FOREIGN KEY (`IdUnidadPedido`) REFERENCES `unidadoperacional` (`IdUnidad`) ON UPDATE CASCADE;
+
+--
+-- Filtros para la tabla `pedido_detalle`
+--
+ALTER TABLE `pedido_detalle`
+  ADD CONSTRAINT `fk_det_articulo` FOREIGN KEY (`IdArticulo`) REFERENCES `articulos` (`IdArticulo`) ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_det_pedido` FOREIGN KEY (`IdPedido`) REFERENCES `pedidos` (`IdPedido`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Filtros para la tabla `tiket`
+--
+ALTER TABLE `tiket`
+  ADD CONSTRAINT `tiket_ibfk_1` FOREIGN KEY (`Numero_Empleado`) REFERENCES `empleado` (`Numero_Empleado`),
+  ADD CONSTRAINT `tiket_ibfk_2` FOREIGN KEY (`ID_Sistema`) REFERENCES `sistema` (`ID_Sistema`),
+  ADD CONSTRAINT `tiket_ibfk_3` FOREIGN KEY (`ID_Error`) REFERENCES `error` (`ID_Error`),
+  ADD CONSTRAINT `tiket_ibfk_4` FOREIGN KEY (`ID_Solucion`) REFERENCES `solucion` (`ID_Solucion`),
+  ADD CONSTRAINT `tiket_ibfk_5` FOREIGN KEY (`ID_Soporte`) REFERENCES `usuario` (`ID_Usuario`),
+  ADD CONSTRAINT `tiket_ibfk_6` FOREIGN KEY (`ID_Estatus`) REFERENCES `estatus` (`ID_Estatus`);
+
+--
+-- Filtros para la tabla `unidadoperacional`
+--
+ALTER TABLE `unidadoperacional`
+  ADD CONSTRAINT `fk_uo_capUV` FOREIGN KEY (`IdCapacidadUV`) REFERENCES `capacidaduv` (`IdCapacidadUV`) ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_uo_sucursal` FOREIGN KEY (`IdSucursal`) REFERENCES `sucursal` (`ID_Sucursal`) ON DELETE SET NULL ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_uo_supervisor` FOREIGN KEY (`IdSupervisor`) REFERENCES `unidadoperacional` (`IdUnidad`) ON DELETE SET NULL ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_uo_tipounidad` FOREIGN KEY (`IdTipoUnidad`) REFERENCES `tipounidad` (`IdTipoUnidad`) ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_uo_usuario` FOREIGN KEY (`IdUsuario`) REFERENCES `usuario` (`ID_Usuario`) ON UPDATE CASCADE;
+
+--
+-- Filtros para la tabla `usuario`
+--
+ALTER TABLE `usuario`
+  ADD CONSTRAINT `usuario_ibfk_1` FOREIGN KEY (`ID_Rol`) REFERENCES `rol` (`ID_Rol`),
+  ADD CONSTRAINT `usuario_ibfk_2` FOREIGN KEY (`ID_Area`) REFERENCES `area` (`ID_Area`);

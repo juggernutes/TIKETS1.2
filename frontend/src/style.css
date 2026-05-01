@@ -1,0 +1,134 @@
+:root {
+  --app-bg: #08111f;
+  --app-bg-soft: rgba(11, 22, 38, 0.82);
+  --app-panel: rgba(16, 29, 49, 0.92);
+  --app-panel-strong: #101b2d;
+  --app-border: rgba(159, 176, 199, 0.18);
+  --app-text: #edf3fb;
+  --app-muted: #a8b7cb;
+  --app-brand: #c5162e;
+  --app-brand-strong: #8d1122;
+  --app-accent: #46c2ff;
+  --app-shadow: 0 22px 50px rgba(0, 0, 0, 0.28);
+  --app-radius: 24px;
+  color-scheme: dark;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  min-height: 100%;
+}
+
+html {
+  background: var(--app-bg);
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  color: var(--app-text);
+  background:
+    radial-gradient(920px 520px at 8% -8%, rgba(197, 22, 46, 0.22), transparent 58%),
+    radial-gradient(1100px 620px at 100% 0%, rgba(70, 194, 255, 0.14), transparent 52%),
+    linear-gradient(180deg, #091221 0%, #0d1627 48%, #0a1321 100%);
+}
+
+a {
+  color: inherit;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+#app {
+  width: 100%;
+}
+
+.p-card {
+  border: 1px solid var(--app-border);
+  border-radius: 22px;
+  overflow: hidden;
+  background: linear-gradient(180deg, rgba(19, 31, 51, 0.96), rgba(13, 24, 41, 0.94));
+  box-shadow: var(--app-shadow);
+}
+
+.p-card .p-card-body {
+  padding: 1.25rem 1.35rem 1.35rem;
+}
+
+.p-datatable,
+.p-dialog,
+.p-panelmenu,
+.p-toast,
+.p-confirm-dialog {
+  color: var(--app-text);
+}
+
+.p-inputtext,
+.p-password-input,
+.p-select,
+.p-datepicker-input,
+.p-inputnumber-input,
+.p-textarea {
+  width: 100%;
+}
+
+.p-inputtext,
+.p-password-input,
+.p-select-label,
+.p-datepicker-input,
+.p-inputnumber-input,
+.p-multiselect-label,
+.p-textarea {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.p-button {
+  font-weight: 600;
+}
+
+.p-dialog {
+  border: 1px solid var(--app-border);
+  border-radius: 22px;
+  overflow: hidden;
+}
+
+.p-dialog .p-dialog-header,
+.p-dialog .p-dialog-content,
+.p-dialog .p-dialog-footer {
+  background: linear-gradient(180deg, rgba(16, 27, 45, 0.98), rgba(11, 20, 34, 0.98));
+}
+
+.p-datatable-table-container,
+.p-datatable-header,
+.p-datatable-footer,
+.p-paginator {
+  background: transparent;
+}
+
+.p-datatable .p-datatable-thead > tr > th {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--app-text);
+  border-color: var(--app-border);
+}
+
+.p-datatable .p-datatable-tbody > tr > td {
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+.p-tag {
+  font-weight: 700;
+}

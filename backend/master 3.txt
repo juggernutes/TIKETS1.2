@@ -1,0 +1,1832 @@
+/* ============================================================
+   PORTAL V2 — MASTER_V3.sql
+   Fixes respecto a V2:
+     [FIX-A] CREATE OR ALTER TRIGGER → IF EXISTS DROP + CREATE TRIGGER
+             (compatible con SQL Server 2012/2014/2016 RTM en adelante)
+     [FIX-B] FK circular ped.pedidos → com.semana movida a ALTER TABLE
+             después de crear com.semana
+   Mantiene los 6 bugs ya corregidos en V2.
+============================================================ */
+
+/* ============================================================
+   BASE DE DATOS
+============================================================ */
+IF DB_ID(N'PortalV2') IS NULL
+    CREATE DATABASE PortalV2;
+GO
+
+USE PortalV2;
+GO
+
+/* ============================================================
+   SCHEMAS
+============================================================ */
+IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'core')
+    EXEC('CREATE SCHEMA core');
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'cat')
+    EXEC('CREATE SCHEMA cat');
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'hd')
+    EXEC('CREATE SCHEMA hd');
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'ped')
+    EXEC('CREATE SCHEMA ped');
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'rh')
+    EXEC('CREATE SCHEMA rh');
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'com')
+    EXEC('CREATE SCHEMA com');
+GO
+
+/* ============================================================
+   SCHEMA: core
+============================================================ */
+
+CREATE TABLE core.rol (
+    ID_Rol  int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    Nombre  varchar(50) NOT NULL,
+    Activo  bit NOT NULL CONSTRAINT DF_core_rol_Activo DEFAULT (1),
+    CONSTRAINT UQ_core_rol_Nombre UNIQUE (Nombre)
+);
+GO
+
+CREATE TABLE core.permiso (
+    ID_Permiso  int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    Clave       varchar(50)  NOT NULL,
+    Nombre      varchar(100) NOT NULL,
+    Modulo      varchar(30)  NOT NULL,
+    Descripcion varchar(200) NULL,
+    Activo      bit NOT NULL CONSTRAINT DF_core_permiso_Activo DEFAULT (1),
+    CONSTRAINT UQ_core_permiso_Clave UNIQUE (Clave)
+);
+GO
+
+CREATE TABLE core.area (
+    ID_Area int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    Nombre  varchar(50) NOT NULL,
+    Serie   varchar(3)  NOT NULL,
+    Activo  bit NOT NULL CONSTRAINT DF_core_area_Activo DEFAULT (1),
+    CONSTRAINT UQ_core_area_Nombre UNIQUE (Nombre),
+    CONSTRAINT UQ_core_area_Serie  UNIQUE (Serie)
+);
+GO
+
+CREATE TABLE core.puesto (
+    ID_Puesto       int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    Clave           varchar(9)   NOT NULL,
+    Descripcion     varchar(100) NOT NULL,
+    Nivel           int NOT NULL,
+    Categoria       varchar(1)   NOT NULL,
+    Segmento        varchar(3)   NOT NULL,
+    Responsabilidad varchar(1)   NOT NULL,
+    Activo          bit NOT NULL CONSTRAINT DF_core_puesto_Activo DEFAULT (1),
+    CONSTRAINT UQ_core_puesto_Clave UNIQUE (Clave),
+    CONSTRAINT CHK_core_puesto_Nivel CHECK (Nivel >= 0)
+);
+GO
+
+CREATE TABLE core.sucursal (
+    ID_Sucursal int NOT NULL PRIMARY KEY,
+    Nombre      varchar(100) NOT NULL,
+    Ciudad      varchar(100) NULL,
+    Activo      bit NOT NULL CONSTRAINT DF_core_suc_Activo DEFAULT (1),
+    CONSTRAINT UQ_core_suc_Nombre UNIQUE (Nombre)
+);
+GO
+
+CREATE TABLE core.empleado (
+    Numero_Empleado   int NOT NULL PRIMARY KEY,
+    Nombre            varchar(100) NOT NULL,
+    Correo            varchar(100) NULL,
+    Extension         varchar(10)  NULL,
+    Telefono          varchar(20)  NULL,
+    UsuarioAnyDesk    varchar(255) NULL,
+    ClaveAnyDesk      varchar(255) NULL,
+    ID_Sucursal       int NULL,
+    ID_Puesto         int NULL,
+    ID_Area           int NULL,
+    Activo            bit NOT NULL CONSTRAINT DF_core_emp_Activo DEFAULT (1),
+    FechaCreacion     datetime2(0) NOT NULL CONSTRAINT DF_core_emp_FC DEFAULT (SYSDATETIME()),
+    FechaModificacion datetime2(0) NULL,
+    CONSTRAINT FK_core_emp_sucursal FOREIGN KEY (ID_Sucursal) REFERENCES core.sucursal(ID_Sucursal),
+    CONSTRAINT FK_core_emp_puesto   FOREIGN KEY (ID_Puesto)   REFERENCES core.puesto(ID_Puesto),
+    CONSTRAINT FK_core_emp_area     FOREIGN KEY (ID_Area)     REFERENCES core.area(ID_Area)
+);
+GO
+
+CREATE UNIQUE INDEX UQ_core_emp_Correo
+    ON core.empleado(Correo)
+    WHERE Correo IS NOT NULL;
+GO
+
+CREATE TABLE core.usuario (
+    ID_Usuario        int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    Nombre            varchar(50)  NOT NULL,
+    Email             varchar(100) NOT NULL,
+    FotoURL           varchar(255) NULL,
+    ID_Rol            int NULL,
+    ID_Area           int NULL,
+    Activo            bit NOT NULL CONSTRAINT DF_core_usu_Activo DEFAULT (1),
+    FechaCreacion     datetime2(0) NOT NULL CONSTRAINT DF_core_usu_FC DEFAULT (SYSDATETIME()),
+    FechaModificacion datetime2(0) NULL,
+    CONSTRAINT UQ_core_usu_Email UNIQUE (Email),
+    CONSTRAINT FK_core_usu_rol  FOREIGN KEY (ID_Rol)  REFERENCES core.rol(ID_Rol),
+    CONSTRAINT FK_core_usu_area FOREIGN KEY (ID_Area) REFERENCES core.area(ID_Area)
+);
+GO
+
+CREATE TABLE core.rol_permiso (
+    ID_Rol        int NOT NULL,
+    ID_Permiso    int NOT NULL,
+    Activo        bit NOT NULL CONSTRAINT DF_core_rp_Activo DEFAULT (1),
+    FechaCreacion datetime2(0) NOT NULL CONSTRAINT DF_core_rp_FC DEFAULT (SYSDATETIME()),
+    AsignadoPor   int NULL,
+    CONSTRAINT PK_core_rol_permiso PRIMARY KEY (ID_Rol, ID_Permiso),
+    CONSTRAINT FK_core_rp_rol     FOREIGN KEY (ID_Rol)     REFERENCES core.rol(ID_Rol),
+    CONSTRAINT FK_core_rp_permiso FOREIGN KEY (ID_Permiso) REFERENCES core.permiso(ID_Permiso)
+);
+GO
+
+ALTER TABLE core.rol_permiso
+    ADD CONSTRAINT FK_core_rp_asignado
+        FOREIGN KEY (AsignadoPor) REFERENCES core.usuario(ID_Usuario);
+GO
+
+CREATE TABLE core.[login] (
+    ID_Login             int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    Cuenta               varchar(70)  NOT NULL,
+    PasswordHash         varchar(512) NOT NULL,
+    IntentosFallidos     int NOT NULL CONSTRAINT DF_core_log_Intentos DEFAULT (0),
+    FechaUltimoIntento   datetime2(0) NULL,
+    ID_Usuario           int NOT NULL,
+    SesionID             varchar(100) NULL,
+    Activo               bit NOT NULL CONSTRAINT DF_core_log_Activo DEFAULT (1),
+    DebeCambiarPassword  bit NOT NULL CONSTRAINT DF_core_log_DCP DEFAULT (1),
+    UltimoCambioPassword datetime2(0) NULL,
+    FechaCreacion        datetime2(0) NOT NULL CONSTRAINT DF_core_log_FC DEFAULT (SYSDATETIME()),
+    FechaModificacion    datetime2(0) NULL,
+    CONSTRAINT UQ_core_log_Cuenta UNIQUE (Cuenta),
+    CONSTRAINT FK_core_log_usuario FOREIGN KEY (ID_Usuario) REFERENCES core.usuario(ID_Usuario),
+    CONSTRAINT CHK_core_log_Intentos CHECK (IntentosFallidos >= 0)
+);
+GO
+
+CREATE TABLE core.password_resets (
+    ID         int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    ID_Usuario int NOT NULL,
+    Token      varchar(64) NOT NULL,
+    ExpiresAt  datetime2(0) NOT NULL,
+    Used       bit NOT NULL CONSTRAINT DF_core_pr_Used DEFAULT (0),
+    CreatedAt  datetime2(0) NOT NULL CONSTRAINT DF_core_pr_CA DEFAULT (SYSDATETIME()),
+    CONSTRAINT UQ_core_pr_Token UNIQUE (Token),
+    CONSTRAINT FK_core_pr_usuario FOREIGN KEY (ID_Usuario) REFERENCES core.usuario(ID_Usuario)
+);
+GO
+
+CREATE INDEX IX_core_pr_ID_Usuario ON core.password_resets(ID_Usuario);
+GO
+
+CREATE TABLE core.folio_area_diario (
+    ID_Area     int  NOT NULL,
+    Fecha       date NOT NULL,
+    Consecutivo int  NOT NULL CONSTRAINT DF_core_fad_Cons DEFAULT (0),
+    CONSTRAINT PK_core_fad PRIMARY KEY (ID_Area, Fecha),
+    CONSTRAINT FK_core_fad_area FOREIGN KEY (ID_Area) REFERENCES core.area(ID_Area),
+    CONSTRAINT CHK_core_fad_Cons CHECK (Consecutivo >= 0)
+);
+GO
+
+CREATE TABLE core.tipo_equipo (
+    ID_TipoEquipo int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    Nombre        varchar(50)  NOT NULL,
+    Descripcion   varchar(200) NULL,
+    Activo        bit NOT NULL CONSTRAINT DF_core_te_Activo DEFAULT (1),
+    CONSTRAINT UQ_core_te_Nombre UNIQUE (Nombre)
+);
+GO
+
+CREATE TABLE core.equipo (
+    ID_Equipo           int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    ID_TipoEquipo       int NOT NULL,
+    Marca               varchar(50)  NULL,
+    Modelo              varchar(50)  NULL,
+    NumeroSerie         varchar(100) NULL,
+    IPDireccion         varchar(45)  NULL,
+    MacDireccion        varchar(17)  NULL,
+    NuActvoFijo         varchar(30)  NULL,
+    SistemaOperativo    varchar(50)  NULL,
+    Descripcion         varchar(max) NULL,
+    FechaCompra         date NULL,
+    ClaveUsuarioWindows varchar(255) NULL,
+    Activo              bit NOT NULL CONSTRAINT DF_core_eq_Activo DEFAULT (1),
+    FechaCreacion       datetime2(0) NOT NULL CONSTRAINT DF_core_eq_FC DEFAULT (SYSDATETIME()),
+    CONSTRAINT FK_core_eq_tipo FOREIGN KEY (ID_TipoEquipo) REFERENCES core.tipo_equipo(ID_TipoEquipo)
+);
+GO
+
+CREATE UNIQUE INDEX UQ_core_eq_NumeroSerie
+    ON core.equipo(NumeroSerie)
+    WHERE NumeroSerie IS NOT NULL;
+GO
+
+CREATE TABLE core.empleado_equipo (
+    ID              int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    Numero_Empleado int NOT NULL,
+    ID_Equipo       int NOT NULL,
+    FechaAsignacion datetime2(0) NOT NULL CONSTRAINT DF_core_ee_FA DEFAULT (SYSDATETIME()),
+    FechaLiberacion datetime2(0) NULL,
+    Activo          bit NOT NULL CONSTRAINT DF_core_ee_Activo DEFAULT (1),
+    CONSTRAINT FK_core_ee_empleado FOREIGN KEY (Numero_Empleado) REFERENCES core.empleado(Numero_Empleado),
+    CONSTRAINT FK_core_ee_equipo   FOREIGN KEY (ID_Equipo)       REFERENCES core.equipo(ID_Equipo),
+    CONSTRAINT CHK_core_ee_Fechas  CHECK (FechaLiberacion IS NULL OR FechaLiberacion >= FechaAsignacion)
+);
+GO
+
+CREATE UNIQUE INDEX UQ_core_ee_Equipo_Activo
+    ON core.empleado_equipo(ID_Equipo)
+    WHERE Activo = 1;
+GO
+
+CREATE TABLE core.proveedor (
+    ID_Proveedor       int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    Nombre             varchar(50)  NOT NULL,
+    Correo             varchar(100) NOT NULL,
+    Telefono           varchar(20)  NULL,
+    ID_Usuario         int NULL,
+    Activo             bit NOT NULL CONSTRAINT DF_core_prov_Activo DEFAULT (1),
+    FechaCreacion      datetime2(0) NOT NULL CONSTRAINT DF_core_prov_FC DEFAULT (SYSDATETIME()),
+    FechaModificacion  datetime2(0) NULL,
+    ID_UsuarioCreo     int NULL,
+    ID_UsuarioModifico int NULL,
+    CONSTRAINT FK_core_prov_usuario  FOREIGN KEY (ID_Usuario)         REFERENCES core.usuario(ID_Usuario),
+    CONSTRAINT FK_core_prov_creo     FOREIGN KEY (ID_UsuarioCreo)     REFERENCES core.usuario(ID_Usuario),
+    CONSTRAINT FK_core_prov_modifico FOREIGN KEY (ID_UsuarioModifico) REFERENCES core.usuario(ID_Usuario)
+);
+GO
+
+CREATE TABLE core.usuario_relacion (
+    ID_UsuarioRelacion int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    ID_Usuario         int NOT NULL,
+    Numero_Empleado    int NULL,
+    ID_Proveedor       int NULL,
+    Activo             bit NOT NULL CONSTRAINT DF_core_ur_Activo DEFAULT (1),
+    CONSTRAINT UQ_core_ur_Usuario   UNIQUE (ID_Usuario),
+    CONSTRAINT FK_core_ur_usuario   FOREIGN KEY (ID_Usuario)      REFERENCES core.usuario(ID_Usuario),
+    CONSTRAINT FK_core_ur_empleado  FOREIGN KEY (Numero_Empleado) REFERENCES core.empleado(Numero_Empleado),
+    CONSTRAINT FK_core_ur_proveedor FOREIGN KEY (ID_Proveedor)    REFERENCES core.proveedor(ID_Proveedor),
+    CONSTRAINT CHK_core_ur_Origen CHECK (
+        (Numero_Empleado IS NOT NULL AND ID_Proveedor IS NULL)
+        OR
+        (Numero_Empleado IS NULL AND ID_Proveedor IS NOT NULL)
+    )
+);
+GO
+
+CREATE UNIQUE INDEX UQ_core_ur_Empleado
+    ON core.usuario_relacion(Numero_Empleado)
+    WHERE Numero_Empleado IS NOT NULL;
+GO
+
+CREATE UNIQUE INDEX UQ_core_ur_Proveedor
+    ON core.usuario_relacion(ID_Proveedor)
+    WHERE ID_Proveedor IS NOT NULL;
+GO
+
+/* --- TRIGGERS core (FIX-A: IF EXISTS DROP + CREATE) --- */
+IF OBJECT_ID('core.TR_empleado_FM', 'TR') IS NOT NULL DROP TRIGGER core.TR_empleado_FM;
+GO
+CREATE TRIGGER core.TR_empleado_FM
+ON core.empleado AFTER UPDATE
+AS BEGIN
+    SET NOCOUNT ON; IF TRIGGER_NESTLEVEL() > 1 RETURN;
+    UPDATE e SET FechaModificacion = SYSDATETIME()
+    FROM core.empleado e INNER JOIN inserted i ON e.Numero_Empleado = i.Numero_Empleado;
+END;
+GO
+
+IF OBJECT_ID('core.TR_usuario_FM', 'TR') IS NOT NULL DROP TRIGGER core.TR_usuario_FM;
+GO
+CREATE TRIGGER core.TR_usuario_FM
+ON core.usuario AFTER UPDATE
+AS BEGIN
+    SET NOCOUNT ON; IF TRIGGER_NESTLEVEL() > 1 RETURN;
+    UPDATE u SET FechaModificacion = SYSDATETIME()
+    FROM core.usuario u INNER JOIN inserted i ON u.ID_Usuario = i.ID_Usuario;
+END;
+GO
+
+IF OBJECT_ID('core.TR_login_FM', 'TR') IS NOT NULL DROP TRIGGER core.TR_login_FM;
+GO
+CREATE TRIGGER core.TR_login_FM
+ON core.[login] AFTER UPDATE
+AS BEGIN
+    SET NOCOUNT ON; IF TRIGGER_NESTLEVEL() > 1 RETURN;
+    UPDATE l SET FechaModificacion = SYSDATETIME()
+    FROM core.[login] l INNER JOIN inserted i ON l.ID_Login = i.ID_Login;
+END;
+GO
+
+IF OBJECT_ID('core.TR_proveedor_FM', 'TR') IS NOT NULL DROP TRIGGER core.TR_proveedor_FM;
+GO
+CREATE TRIGGER core.TR_proveedor_FM
+ON core.proveedor AFTER UPDATE
+AS BEGIN
+    SET NOCOUNT ON; IF TRIGGER_NESTLEVEL() > 1 RETURN;
+    UPDATE p SET FechaModificacion = SYSDATETIME()
+    FROM core.proveedor p INNER JOIN inserted i ON p.ID_Proveedor = i.ID_Proveedor;
+END;
+GO
+
+/* ============================================================
+   SCHEMA: cat
+============================================================ */
+
+CREATE TABLE cat.tipo_articulo (
+    IdTipoArticulo int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    Nombre         varchar(60) NOT NULL,
+    Medida         varchar(30) NULL,
+    Activo         bit NOT NULL CONSTRAINT DF_cat_ta_activo DEFAULT (1),
+    created_at     datetime2(0) NOT NULL CONSTRAINT DF_cat_ta_cat DEFAULT (SYSDATETIME()),
+    updated_at     datetime2(0) NOT NULL CONSTRAINT DF_cat_ta_uat DEFAULT (SYSDATETIME()),
+    created_by     int NULL,
+    updated_by     int NULL,
+    CONSTRAINT UQ_cat_ta_Nombre UNIQUE (Nombre),
+    CONSTRAINT FK_cat_ta_creo FOREIGN KEY (created_by) REFERENCES core.usuario(ID_Usuario),
+    CONSTRAINT FK_cat_ta_mod  FOREIGN KEY (updated_by) REFERENCES core.usuario(ID_Usuario)
+);
+GO
+
+CREATE TABLE cat.linea_articulo (
+    IdLineaArticulo int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    Nombre          varchar(60)  NOT NULL,
+    Descripcion     varchar(200) NULL,
+    Activo          bit NOT NULL CONSTRAINT DF_cat_la_activo DEFAULT (1),
+    created_at      datetime2(0) NOT NULL CONSTRAINT DF_cat_la_cat DEFAULT (SYSDATETIME()),
+    updated_at      datetime2(0) NOT NULL CONSTRAINT DF_cat_la_uat DEFAULT (SYSDATETIME()),
+    created_by      int NULL,
+    updated_by      int NULL,
+    CONSTRAINT UQ_cat_la_Nombre UNIQUE (Nombre),
+    CONSTRAINT FK_cat_la_creo FOREIGN KEY (created_by) REFERENCES core.usuario(ID_Usuario),
+    CONSTRAINT FK_cat_la_mod  FOREIGN KEY (updated_by) REFERENCES core.usuario(ID_Usuario)
+);
+GO
+
+CREATE TABLE cat.grupo_articulo (
+    IdGrupoArticulo int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    IdLineaArticulo int NOT NULL,
+    Nombre          varchar(60)  NOT NULL,
+    Descripcion     varchar(200) NULL,
+    Activo          bit NOT NULL CONSTRAINT DF_cat_ga_activo DEFAULT (1),
+    created_at      datetime2(0) NOT NULL CONSTRAINT DF_cat_ga_cat DEFAULT (SYSDATETIME()),
+    updated_at      datetime2(0) NOT NULL CONSTRAINT DF_cat_ga_uat DEFAULT (SYSDATETIME()),
+    created_by      int NULL,
+    updated_by      int NULL,
+    CONSTRAINT FK_cat_ga_linea FOREIGN KEY (IdLineaArticulo) REFERENCES cat.linea_articulo(IdLineaArticulo),
+    CONSTRAINT FK_cat_ga_creo  FOREIGN KEY (created_by)      REFERENCES core.usuario(ID_Usuario),
+    CONSTRAINT FK_cat_ga_mod   FOREIGN KEY (updated_by)      REFERENCES core.usuario(ID_Usuario)
+);
+GO
+
+CREATE TABLE cat.articulo (
+    IdArticulo      int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    Nombre          varchar(120) NOT NULL,
+    NombreCorto     varchar(40)  NULL,
+    IdTipoArticulo  int NOT NULL,
+    Peso            decimal(12,3) NULL,
+    Bloqueado       bit NOT NULL CONSTRAINT DF_cat_art_Bloqueado DEFAULT (0),
+    IdGrupoArticulo int NOT NULL,
+    Activo          bit NOT NULL CONSTRAINT DF_cat_art_activo DEFAULT (1),
+    created_at      datetime2(0) NOT NULL CONSTRAINT DF_cat_art_cat DEFAULT (SYSDATETIME()),
+    updated_at      datetime2(0) NOT NULL CONSTRAINT DF_cat_art_uat DEFAULT (SYSDATETIME()),
+    created_by      int NULL,
+    updated_by      int NULL,
+    CONSTRAINT FK_cat_art_tipo  FOREIGN KEY (IdTipoArticulo)  REFERENCES cat.tipo_articulo(IdTipoArticulo),
+    CONSTRAINT FK_cat_art_grupo FOREIGN KEY (IdGrupoArticulo) REFERENCES cat.grupo_articulo(IdGrupoArticulo),
+    CONSTRAINT FK_cat_art_creo  FOREIGN KEY (created_by)      REFERENCES core.usuario(ID_Usuario),
+    CONSTRAINT FK_cat_art_mod   FOREIGN KEY (updated_by)      REFERENCES core.usuario(ID_Usuario),
+    CONSTRAINT CHK_cat_art_Peso CHECK (Peso IS NULL OR Peso >= 0)
+);
+GO
+
+CREATE TABLE cat.sistema (
+    ID_Sistema  int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    ID_Area     int NOT NULL,
+    Nombre      varchar(100) NOT NULL,
+    Descripcion varchar(max) NULL,
+    Activo      bit NOT NULL CONSTRAINT DF_cat_sis_Activo DEFAULT (1),
+    CONSTRAINT FK_cat_sis_area FOREIGN KEY (ID_Area) REFERENCES core.area(ID_Area)
+);
+GO
+
+/* --- TRIGGERS cat (FIX-A) --- */
+IF OBJECT_ID('cat.TR_tipo_articulo_uat', 'TR') IS NOT NULL DROP TRIGGER cat.TR_tipo_articulo_uat;
+GO
+CREATE TRIGGER cat.TR_tipo_articulo_uat
+ON cat.tipo_articulo AFTER UPDATE
+AS BEGIN
+    SET NOCOUNT ON; IF TRIGGER_NESTLEVEL() > 1 RETURN;
+    UPDATE t SET updated_at = SYSDATETIME()
+    FROM cat.tipo_articulo t INNER JOIN inserted i ON t.IdTipoArticulo = i.IdTipoArticulo;
+END;
+GO
+
+IF OBJECT_ID('cat.TR_linea_articulo_uat', 'TR') IS NOT NULL DROP TRIGGER cat.TR_linea_articulo_uat;
+GO
+CREATE TRIGGER cat.TR_linea_articulo_uat
+ON cat.linea_articulo AFTER UPDATE
+AS BEGIN
+    SET NOCOUNT ON; IF TRIGGER_NESTLEVEL() > 1 RETURN;
+    UPDATE t SET updated_at = SYSDATETIME()
+    FROM cat.linea_articulo t INNER JOIN inserted i ON t.IdLineaArticulo = i.IdLineaArticulo;
+END;
+GO
+
+IF OBJECT_ID('cat.TR_grupo_articulo_uat', 'TR') IS NOT NULL DROP TRIGGER cat.TR_grupo_articulo_uat;
+GO
+CREATE TRIGGER cat.TR_grupo_articulo_uat
+ON cat.grupo_articulo AFTER UPDATE
+AS BEGIN
+    SET NOCOUNT ON; IF TRIGGER_NESTLEVEL() > 1 RETURN;
+    UPDATE t SET updated_at = SYSDATETIME()
+    FROM cat.grupo_articulo t INNER JOIN inserted i ON t.IdGrupoArticulo = i.IdGrupoArticulo;
+END;
+GO
+
+IF OBJECT_ID('cat.TR_articulo_uat', 'TR') IS NOT NULL DROP TRIGGER cat.TR_articulo_uat;
+GO
+CREATE TRIGGER cat.TR_articulo_uat
+ON cat.articulo AFTER UPDATE
+AS BEGIN
+    SET NOCOUNT ON; IF TRIGGER_NESTLEVEL() > 1 RETURN;
+    UPDATE t SET updated_at = SYSDATETIME()
+    FROM cat.articulo t INNER JOIN inserted i ON t.IdArticulo = i.IdArticulo;
+END;
+GO
+
+/* ============================================================
+   SCHEMA: hd
+============================================================ */
+
+CREATE TABLE hd.estatus (
+    ID_Estatus int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    Nombre     varchar(50) NOT NULL,
+    Orden      int NOT NULL DEFAULT (0),
+    CONSTRAINT UQ_hd_estatus_Nombre UNIQUE (Nombre)
+);
+GO
+
+CREATE TABLE hd.[error] (
+    ID_Error    int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    Descripcion varchar(max) NOT NULL,
+    Tipo        int NOT NULL,
+    Activo      bit NOT NULL CONSTRAINT DF_hd_error_Activo DEFAULT (1)
+);
+GO
+
+CREATE TABLE hd.solucion (
+    ID_Solucion int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    Descripcion varchar(max) NOT NULL,
+    Activo      bit NOT NULL CONSTRAINT DF_hd_sol_Activo DEFAULT (1)
+);
+GO
+
+CREATE TABLE hd.ticket (
+    ID_Ticket           int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    SerieFolio          varchar(20)  NULL,
+    Numero_Empleado     int NOT NULL,
+    ID_Area_Origen      int NOT NULL,
+    ID_Area_Responsable int NOT NULL,
+    ID_Sistema          int NOT NULL,
+    ID_Error            int NOT NULL,
+    Descripcion         varchar(max) NOT NULL,
+    FechaReporte        datetime2(0) NOT NULL CONSTRAINT DF_hd_tkt_FR DEFAULT (SYSDATETIME()),
+    FechaAsignacion     datetime2(0) NULL,
+    FechaSolucion       datetime2(0) NULL,
+    ID_Solucion         int NULL,
+    DetalleSolucion     varchar(max) NULL,
+    ID_Soporte          int NULL,
+    ID_Estatus          int NOT NULL,
+    ID_Usuario_Cierra   int NULL,
+    Activo              bit NOT NULL CONSTRAINT DF_hd_tkt_Activo DEFAULT (1),
+    FechaCreacion       datetime2(0) NOT NULL CONSTRAINT DF_hd_tkt_FC DEFAULT (SYSDATETIME()),
+    FechaModificacion   datetime2(0) NULL,
+    CONSTRAINT FK_hd_tkt_empleado    FOREIGN KEY (Numero_Empleado)     REFERENCES core.empleado(Numero_Empleado),
+    CONSTRAINT FK_hd_tkt_area_origen FOREIGN KEY (ID_Area_Origen)      REFERENCES core.area(ID_Area),
+    CONSTRAINT FK_hd_tkt_area_resp   FOREIGN KEY (ID_Area_Responsable) REFERENCES core.area(ID_Area),
+    CONSTRAINT FK_hd_tkt_sistema     FOREIGN KEY (ID_Sistema)          REFERENCES cat.sistema(ID_Sistema),
+    CONSTRAINT FK_hd_tkt_error       FOREIGN KEY (ID_Error)            REFERENCES hd.[error](ID_Error),
+    CONSTRAINT FK_hd_tkt_solucion    FOREIGN KEY (ID_Solucion)         REFERENCES hd.solucion(ID_Solucion),
+    CONSTRAINT FK_hd_tkt_soporte     FOREIGN KEY (ID_Soporte)          REFERENCES core.usuario(ID_Usuario),
+    CONSTRAINT FK_hd_tkt_estatus     FOREIGN KEY (ID_Estatus)          REFERENCES hd.estatus(ID_Estatus),
+    CONSTRAINT FK_hd_tkt_cierra      FOREIGN KEY (ID_Usuario_Cierra)   REFERENCES core.usuario(ID_Usuario),
+    CONSTRAINT CHK_hd_tkt_Fechas     CHECK (FechaAsignacion IS NULL OR FechaAsignacion >= FechaReporte),
+    CONSTRAINT CHK_hd_tkt_FechaSol   CHECK (FechaSolucion IS NULL OR FechaAsignacion IS NULL
+                                            OR FechaSolucion >= FechaAsignacion)
+);
+GO
+
+CREATE TABLE hd.ticket_asignacion_area (
+    ID_Asignacion    int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    ID_Ticket        int NOT NULL,
+    ID_Area          int NOT NULL,
+    FechaAsignacion  datetime2(0) NOT NULL CONSTRAINT DF_hd_taa_FA DEFAULT (SYSDATETIME()),
+    ID_UsuarioAsigno int NULL,
+    Activa           bit NOT NULL CONSTRAINT DF_hd_taa_Activa DEFAULT (1),
+    CONSTRAINT FK_hd_taa_ticket  FOREIGN KEY (ID_Ticket)        REFERENCES hd.ticket(ID_Ticket),
+    CONSTRAINT FK_hd_taa_area    FOREIGN KEY (ID_Area)          REFERENCES core.area(ID_Area),
+    CONSTRAINT FK_hd_taa_usuario FOREIGN KEY (ID_UsuarioAsigno) REFERENCES core.usuario(ID_Usuario)
+);
+GO
+
+CREATE TABLE hd.comentario (
+    ID_Comentario int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    ID_Ticket     int NOT NULL,
+    ID_Usuario    int NOT NULL,
+    Mensaje       varchar(max) NOT NULL,
+    Fecha         datetime2(0) NOT NULL CONSTRAINT DF_hd_com_Fecha DEFAULT (SYSDATETIME()),
+    CONSTRAINT FK_hd_com_ticket  FOREIGN KEY (ID_Ticket)  REFERENCES hd.ticket(ID_Ticket),
+    CONSTRAINT FK_hd_com_usuario FOREIGN KEY (ID_Usuario) REFERENCES core.usuario(ID_Usuario)
+);
+GO
+
+CREATE TABLE hd.encuesta_ticket (
+    ID_Encuesta  int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    ID_Ticket    int NOT NULL,
+    Calificacion int NULL,
+    Comentarios  varchar(max) NULL,
+    Fecha        datetime2(0) NOT NULL CONSTRAINT DF_hd_enc_Fecha DEFAULT (SYSDATETIME()),
+    ID_Usuario   int NULL,
+    CONSTRAINT FK_hd_enc_ticket  FOREIGN KEY (ID_Ticket)  REFERENCES hd.ticket(ID_Ticket),
+    CONSTRAINT FK_hd_enc_usuario FOREIGN KEY (ID_Usuario) REFERENCES core.usuario(ID_Usuario),
+    CONSTRAINT CHK_hd_enc_Cal    CHECK (Calificacion IS NULL OR Calificacion BETWEEN 1 AND 5),
+    CONSTRAINT UQ_hd_enc_Ticket  UNIQUE (ID_Ticket)
+);
+GO
+
+/* --- TRIGGER hd (FIX-A) --- */
+IF OBJECT_ID('hd.TR_ticket_FM', 'TR') IS NOT NULL DROP TRIGGER hd.TR_ticket_FM;
+GO
+CREATE TRIGGER hd.TR_ticket_FM
+ON hd.ticket AFTER UPDATE
+AS BEGIN
+    SET NOCOUNT ON; IF TRIGGER_NESTLEVEL() > 1 RETURN;
+    UPDATE t SET FechaModificacion = SYSDATETIME()
+    FROM hd.ticket t INNER JOIN inserted i ON t.ID_Ticket = i.ID_Ticket;
+END;
+GO
+
+CREATE INDEX IX_hd_tkt_Empleado    ON hd.ticket(Numero_Empleado);
+CREATE INDEX IX_hd_tkt_Estatus     ON hd.ticket(ID_Estatus);
+CREATE INDEX IX_hd_tkt_Area_Resp   ON hd.ticket(ID_Area_Responsable);
+CREATE INDEX IX_hd_tkt_Sistema     ON hd.ticket(ID_Sistema);
+CREATE INDEX IX_hd_tkt_FechaReport ON hd.ticket(FechaReporte);
+CREATE INDEX IX_hd_taa_Ticket      ON hd.ticket_asignacion_area(ID_Ticket);
+CREATE INDEX IX_hd_taa_Area        ON hd.ticket_asignacion_area(ID_Area);
+CREATE INDEX IX_hd_com_Ticket      ON hd.comentario(ID_Ticket);
+GO
+
+/* ============================================================
+   SCHEMA: ped
+   [FIX-B] FK ped.pedidos → com.semana movida a ALTER TABLE
+           después de crear com.semana
+============================================================ */
+
+CREATE TABLE ped.capacidaduv (
+    IdCapacidadUV   int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    Nombre          varchar(80)  NOT NULL,
+    Descripcion     varchar(200) NULL,
+    CapacidadMaxima int NULL,
+    CapacidadMinima int NULL,
+    activo          bit NOT NULL CONSTRAINT DF_ped_cuv_activo DEFAULT (1),
+    created_at      datetime2(0) NOT NULL CONSTRAINT DF_ped_cuv_cat DEFAULT (SYSDATETIME()),
+    updated_at      datetime2(0) NOT NULL CONSTRAINT DF_ped_cuv_uat DEFAULT (SYSDATETIME()),
+    created_by      int NULL,
+    updated_by      int NULL,
+    CONSTRAINT UQ_ped_cuv_Nombre UNIQUE (Nombre),
+    CONSTRAINT CHK_ped_cuv_Rango CHECK (
+        CapacidadMaxima IS NULL OR CapacidadMinima IS NULL
+        OR CapacidadMinima <= CapacidadMaxima),
+    CONSTRAINT CHK_ped_cuv_Min CHECK (CapacidadMinima IS NULL OR CapacidadMinima >= 0),
+    CONSTRAINT CHK_ped_cuv_Max CHECK (CapacidadMaxima IS NULL OR CapacidadMaxima >= 0),
+    CONSTRAINT FK_ped_cuv_created_by FOREIGN KEY (created_by) REFERENCES core.usuario(ID_Usuario),
+    CONSTRAINT FK_ped_cuv_updated_by FOREIGN KEY (updated_by) REFERENCES core.usuario(ID_Usuario)
+);
+GO
+
+CREATE TABLE ped.tipounidad (
+    IdTipoUnidad int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    Nombre       varchar(80)  NOT NULL,
+    Descripcion  varchar(200) NULL,
+    activo       bit NOT NULL CONSTRAINT DF_ped_tu_activo DEFAULT (1),
+    created_at   datetime2(0) NOT NULL CONSTRAINT DF_ped_tu_cat DEFAULT (SYSDATETIME()),
+    updated_at   datetime2(0) NOT NULL CONSTRAINT DF_ped_tu_uat DEFAULT (SYSDATETIME()),
+    created_by   int NULL,
+    updated_by   int NULL,
+    CONSTRAINT UQ_ped_tu_Nombre     UNIQUE (Nombre),
+    CONSTRAINT FK_ped_tu_created_by FOREIGN KEY (created_by) REFERENCES core.usuario(ID_Usuario),
+    CONSTRAINT FK_ped_tu_updated_by FOREIGN KEY (updated_by) REFERENCES core.usuario(ID_Usuario)
+);
+GO
+
+CREATE TABLE ped.unidadoperacional (
+    IdUnidad      int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    IdTipoUnidad  int NOT NULL,
+    IdUsuario     int NOT NULL,
+    IdSupervisor  int NULL,
+    IdSucursal    int NULL,
+    IdCapacidadUV int NOT NULL,
+    Nombre        varchar(100) NOT NULL,
+    Descripcion   varchar(200) NULL,
+    activo        bit NOT NULL CONSTRAINT DF_ped_uo_activo DEFAULT (1),
+    created_at    datetime2(0) NOT NULL CONSTRAINT DF_ped_uo_cat DEFAULT (SYSDATETIME()),
+    updated_at    datetime2(0) NOT NULL CONSTRAINT DF_ped_uo_uat DEFAULT (SYSDATETIME()),
+    created_by    int NULL,
+    updated_by    int NULL,
+    CONSTRAINT FK_ped_uo_tipounidad  FOREIGN KEY (IdTipoUnidad)  REFERENCES ped.tipounidad(IdTipoUnidad),
+    CONSTRAINT FK_ped_uo_usuario     FOREIGN KEY (IdUsuario)     REFERENCES core.usuario(ID_Usuario),
+    CONSTRAINT FK_ped_uo_supervisor  FOREIGN KEY (IdSupervisor)  REFERENCES ped.unidadoperacional(IdUnidad),
+    CONSTRAINT FK_ped_uo_sucursal    FOREIGN KEY (IdSucursal)    REFERENCES core.sucursal(ID_Sucursal),
+    CONSTRAINT FK_ped_uo_capacidad   FOREIGN KEY (IdCapacidadUV) REFERENCES ped.capacidaduv(IdCapacidadUV),
+    CONSTRAINT FK_ped_uo_created_by  FOREIGN KEY (created_by)    REFERENCES core.usuario(ID_Usuario),
+    CONSTRAINT FK_ped_uo_updated_by  FOREIGN KEY (updated_by)    REFERENCES core.usuario(ID_Usuario)
+);
+GO
+
+CREATE UNIQUE INDEX UQ_ped_uo_Nombre_Sucursal
+    ON ped.unidadoperacional(Nombre, IdSucursal)
+    WHERE IdSucursal IS NOT NULL;
+GO
+
+CREATE TABLE ped.estado_pedido (
+    IdEstado    int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    Nombre      varchar(60)  NOT NULL,
+    Descripcion varchar(200) NULL,
+    activo      bit NOT NULL CONSTRAINT DF_ped_ep_activo DEFAULT (1),
+    created_at  datetime2(0) NOT NULL CONSTRAINT DF_ped_ep_cat DEFAULT (SYSDATETIME()),
+    updated_at  datetime2(0) NOT NULL CONSTRAINT DF_ped_ep_uat DEFAULT (SYSDATETIME()),
+    created_by  int NULL,
+    updated_by  int NULL,
+    CONSTRAINT UQ_ped_ep_Nombre     UNIQUE (Nombre),
+    CONSTRAINT FK_ped_ep_created_by FOREIGN KEY (created_by) REFERENCES core.usuario(ID_Usuario),
+    CONSTRAINT FK_ped_ep_updated_by FOREIGN KEY (updated_by) REFERENCES core.usuario(ID_Usuario)
+);
+GO
+
+-- [FIX-B] Aquí se crea ped.pedidos SIN la FK a com.semana (que aún no existe)
+CREATE TABLE ped.pedidos (
+    IdPedido          int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    FolioPedido       varchar(40)   NULL,
+    IdEstado          int NOT NULL,
+    IdUnidadPedido    int NOT NULL,
+    IdSupervisor      int NOT NULL,
+    IdAlmacen         int NOT NULL,
+    Registros         int NULL,
+    Dia               varchar(2)    NULL,
+    Semana            tinyint       NULL,
+    ID_Semana         int           NULL,
+    PedVolPed         decimal(12,3) NULL,
+    PedVolApr         decimal(12,3) NULL,
+    PedVolSur         decimal(12,3) NULL,
+    FechaPedido       datetime2(0)  NULL,
+    FechaAutorizacion datetime2(0)  NULL,
+    FechaSurtido      datetime2(0)  NULL,
+    ObserVen          varchar(200)  NULL,
+    ObserSup          varchar(200)  NULL,
+    ObserAlm          varchar(200)  NULL,
+    activo            bit NOT NULL CONSTRAINT DF_ped_ped_activo DEFAULT (1),
+    created_at        datetime2(0) NOT NULL CONSTRAINT DF_ped_ped_cat DEFAULT (SYSDATETIME()),
+    updated_at        datetime2(0) NOT NULL CONSTRAINT DF_ped_ped_uat DEFAULT (SYSDATETIME()),
+    created_by        int NULL,
+    updated_by        int NULL,
+    CONSTRAINT CHK_ped_ped_Dia    CHECK (Dia IS NULL OR Dia IN ('lu','ma','mi','ju','vi','sa')),
+    CONSTRAINT CHK_ped_ped_Semana CHECK (Semana IS NULL OR Semana BETWEEN 1 AND 53),
+    CONSTRAINT CHK_ped_ped_VolPed CHECK (PedVolPed IS NULL OR PedVolPed >= 0),
+    CONSTRAINT CHK_ped_ped_VolApr CHECK (PedVolApr IS NULL OR PedVolApr >= 0),
+    CONSTRAINT CHK_ped_ped_VolSur CHECK (PedVolSur IS NULL OR PedVolSur >= 0),
+    CONSTRAINT CHK_ped_ped_Fechas CHECK (
+        FechaAutorizacion IS NULL OR FechaPedido IS NULL OR FechaAutorizacion >= FechaPedido),
+    CONSTRAINT CHK_ped_ped_FechaSur CHECK (
+        FechaSurtido IS NULL OR FechaAutorizacion IS NULL OR FechaSurtido >= FechaAutorizacion),
+    CONSTRAINT FK_ped_ped_estado     FOREIGN KEY (IdEstado)       REFERENCES ped.estado_pedido(IdEstado),
+    CONSTRAINT FK_ped_ped_unidad     FOREIGN KEY (IdUnidadPedido) REFERENCES ped.unidadoperacional(IdUnidad),
+    CONSTRAINT FK_ped_ped_supervisor FOREIGN KEY (IdSupervisor)   REFERENCES ped.unidadoperacional(IdUnidad),
+    CONSTRAINT FK_ped_ped_almacen    FOREIGN KEY (IdAlmacen)      REFERENCES ped.unidadoperacional(IdUnidad),
+    -- [FIX-B] FK_ped_ped_semana se agregará con ALTER TABLE después de crear com.semana
+    CONSTRAINT FK_ped_ped_created_by FOREIGN KEY (created_by)     REFERENCES core.usuario(ID_Usuario),
+    CONSTRAINT FK_ped_ped_updated_by FOREIGN KEY (updated_by)     REFERENCES core.usuario(ID_Usuario)
+);
+GO
+
+CREATE UNIQUE INDEX UQ_ped_ped_FolioPedido
+    ON ped.pedidos(FolioPedido)
+    WHERE FolioPedido IS NOT NULL;
+GO
+
+CREATE TABLE ped.pedido_detalle (
+    IdPedido    int NOT NULL,
+    IdArticulo  int NOT NULL,
+    Registro    smallint      NOT NULL,
+    CanPzPed    int           NOT NULL,
+    VolPed      decimal(12,3) NOT NULL,
+    CanPzApr    int           NULL,
+    VolApr      decimal(12,3) NULL,
+    CanPzSur    int           NULL,
+    VolSur      decimal(12,3) NULL,
+    activo      bit NOT NULL CONSTRAINT DF_ped_det_activo DEFAULT (1),
+    created_at  datetime2(0) NOT NULL CONSTRAINT DF_ped_det_cat DEFAULT (SYSDATETIME()),
+    updated_at  datetime2(0) NOT NULL CONSTRAINT DF_ped_det_uat DEFAULT (SYSDATETIME()),
+    created_by  int NULL,
+    updated_by  int NULL,
+    CONSTRAINT PK_ped_det PRIMARY KEY (IdPedido, Registro, IdArticulo),
+    CONSTRAINT CHK_ped_det_CanPzPed CHECK (CanPzPed >= 0),
+    CONSTRAINT CHK_ped_det_VolPed   CHECK (VolPed   >= 0),
+    CONSTRAINT CHK_ped_det_CanPzApr CHECK (CanPzApr IS NULL OR CanPzApr >= 0),
+    CONSTRAINT CHK_ped_det_VolApr   CHECK (VolApr   IS NULL OR VolApr   >= 0),
+    CONSTRAINT CHK_ped_det_CanPzSur CHECK (CanPzSur IS NULL OR CanPzSur >= 0),
+    CONSTRAINT CHK_ped_det_VolSur   CHECK (VolSur   IS NULL OR VolSur   >= 0),
+    CONSTRAINT FK_ped_det_pedido     FOREIGN KEY (IdPedido)   REFERENCES ped.pedidos(IdPedido),
+    CONSTRAINT FK_ped_det_articulo   FOREIGN KEY (IdArticulo) REFERENCES cat.articulo(IdArticulo),
+    CONSTRAINT FK_ped_det_created_by FOREIGN KEY (created_by) REFERENCES core.usuario(ID_Usuario),
+    CONSTRAINT FK_ped_det_updated_by FOREIGN KEY (updated_by) REFERENCES core.usuario(ID_Usuario)
+);
+GO
+
+CREATE TABLE ped.pedido_estado_log (
+    IdLog      bigint IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    IdPedido   int NOT NULL,
+    IdEstado   int NOT NULL,
+    CambioPor  int NULL,
+    Notas      varchar(500) NULL,
+    created_at datetime2(0) NOT NULL CONSTRAINT DF_ped_log_cat DEFAULT (SYSDATETIME()),
+    CONSTRAINT FK_ped_log_pedido  FOREIGN KEY (IdPedido)  REFERENCES ped.pedidos(IdPedido),
+    CONSTRAINT FK_ped_log_estado  FOREIGN KEY (IdEstado)  REFERENCES ped.estado_pedido(IdEstado),
+    CONSTRAINT FK_ped_log_usuario FOREIGN KEY (CambioPor) REFERENCES core.usuario(ID_Usuario)
+);
+GO
+
+/* --- TRIGGERS ped (FIX-A) --- */
+IF OBJECT_ID('ped.TR_capacidaduv_uat', 'TR') IS NOT NULL DROP TRIGGER ped.TR_capacidaduv_uat;
+GO
+CREATE TRIGGER ped.TR_capacidaduv_uat ON ped.capacidaduv AFTER UPDATE
+AS BEGIN SET NOCOUNT ON; IF TRIGGER_NESTLEVEL() > 1 RETURN;
+    UPDATE t SET updated_at = SYSDATETIME() FROM ped.capacidaduv t INNER JOIN inserted i ON t.IdCapacidadUV = i.IdCapacidadUV; END;
+GO
+
+IF OBJECT_ID('ped.TR_tipounidad_uat', 'TR') IS NOT NULL DROP TRIGGER ped.TR_tipounidad_uat;
+GO
+CREATE TRIGGER ped.TR_tipounidad_uat ON ped.tipounidad AFTER UPDATE
+AS BEGIN SET NOCOUNT ON; IF TRIGGER_NESTLEVEL() > 1 RETURN;
+    UPDATE t SET updated_at = SYSDATETIME() FROM ped.tipounidad t INNER JOIN inserted i ON t.IdTipoUnidad = i.IdTipoUnidad; END;
+GO
+
+IF OBJECT_ID('ped.TR_unidadoperacional_uat', 'TR') IS NOT NULL DROP TRIGGER ped.TR_unidadoperacional_uat;
+GO
+CREATE TRIGGER ped.TR_unidadoperacional_uat ON ped.unidadoperacional AFTER UPDATE
+AS BEGIN SET NOCOUNT ON; IF TRIGGER_NESTLEVEL() > 1 RETURN;
+    UPDATE t SET updated_at = SYSDATETIME() FROM ped.unidadoperacional t INNER JOIN inserted i ON t.IdUnidad = i.IdUnidad; END;
+GO
+
+IF OBJECT_ID('ped.TR_estado_pedido_uat', 'TR') IS NOT NULL DROP TRIGGER ped.TR_estado_pedido_uat;
+GO
+CREATE TRIGGER ped.TR_estado_pedido_uat ON ped.estado_pedido AFTER UPDATE
+AS BEGIN SET NOCOUNT ON; IF TRIGGER_NESTLEVEL() > 1 RETURN;
+    UPDATE t SET updated_at = SYSDATETIME() FROM ped.estado_pedido t INNER JOIN inserted i ON t.IdEstado = i.IdEstado; END;
+GO
+
+IF OBJECT_ID('ped.TR_pedidos_uat', 'TR') IS NOT NULL DROP TRIGGER ped.TR_pedidos_uat;
+GO
+CREATE TRIGGER ped.TR_pedidos_uat ON ped.pedidos AFTER UPDATE
+AS BEGIN SET NOCOUNT ON; IF TRIGGER_NESTLEVEL() > 1 RETURN;
+    UPDATE t SET updated_at = SYSDATETIME() FROM ped.pedidos t INNER JOIN inserted i ON t.IdPedido = i.IdPedido; END;
+GO
+
+IF OBJECT_ID('ped.TR_pedido_detalle_uat', 'TR') IS NOT NULL DROP TRIGGER ped.TR_pedido_detalle_uat;
+GO
+CREATE TRIGGER ped.TR_pedido_detalle_uat ON ped.pedido_detalle AFTER UPDATE
+AS BEGIN SET NOCOUNT ON; IF TRIGGER_NESTLEVEL() > 1 RETURN;
+    UPDATE t SET updated_at = SYSDATETIME() FROM ped.pedido_detalle t
+    INNER JOIN inserted i ON t.IdPedido = i.IdPedido AND t.Registro = i.Registro AND t.IdArticulo = i.IdArticulo; END;
+GO
+
+CREATE INDEX IX_ped_uo_IdUsuario      ON ped.unidadoperacional(IdUsuario);
+CREATE INDEX IX_ped_uo_IdSupervisor   ON ped.unidadoperacional(IdSupervisor);
+CREATE INDEX IX_ped_ped_IdEstado      ON ped.pedidos(IdEstado);
+CREATE INDEX IX_ped_ped_IdUnidad      ON ped.pedidos(IdUnidadPedido);
+CREATE INDEX IX_ped_ped_IdSupervisor  ON ped.pedidos(IdSupervisor);
+CREATE INDEX IX_ped_ped_IdAlmacen     ON ped.pedidos(IdAlmacen);
+CREATE INDEX IX_ped_ped_FechaPedido   ON ped.pedidos(FechaPedido);
+CREATE INDEX IX_ped_ped_Semana        ON ped.pedidos(Semana)    WHERE Semana    IS NOT NULL;
+CREATE INDEX IX_ped_ped_Dia           ON ped.pedidos(Dia)       WHERE Dia       IS NOT NULL;
+CREATE INDEX IX_ped_ped_ID_Semana     ON ped.pedidos(ID_Semana) WHERE ID_Semana IS NOT NULL;
+CREATE INDEX IX_ped_log_IdPedido      ON ped.pedido_estado_log(IdPedido);
+CREATE INDEX IX_ped_det_IdArticulo    ON ped.pedido_detalle(IdArticulo);
+GO
+
+/* ============================================================
+   SCHEMA: rh
+============================================================ */
+
+CREATE TABLE rh.estatus_candidato (
+    ID_EstatusCandidato int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    Nombre              varchar(50)  NOT NULL,
+    Descripcion         varchar(200) NULL,
+    OrdenProceso        int NULL,
+    Activo              bit NOT NULL CONSTRAINT DF_rh_ec_Activo DEFAULT (1),
+    FechaCreacion       datetime2(0) NOT NULL CONSTRAINT DF_rh_ec_FC DEFAULT (SYSDATETIME()),
+    FechaActualizacion  datetime2(0) NULL,
+    CONSTRAINT UQ_rh_ec_Nombre UNIQUE (Nombre)
+);
+GO
+
+CREATE TABLE rh.vacante (
+    ID_Vacante            int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    Folio                 varchar(20)   NULL,
+    Titulo                varchar(100)  NOT NULL,
+    Descripcion           varchar(max)  NULL,
+    Perfil                varchar(max)  NULL,
+    Requisitos            varchar(max)  NULL,
+    SalarioMin            decimal(12,2) NULL,
+    SalarioMax            decimal(12,2) NULL,
+    NumeroPosiciones      int NOT NULL CONSTRAINT DF_rh_vac_NPos DEFAULT (1),
+    FechaPublicacion      datetime2(0) NOT NULL CONSTRAINT DF_rh_vac_FPub DEFAULT (SYSDATETIME()),
+    FechaCierre           datetime2(0) NULL,
+    ID_Area               int NULL,
+    ID_Puesto             int NULL,
+    ID_Sucursal           int NULL,
+    ID_UsuarioSolicita    int NULL,
+    ID_UsuarioResponsable int NULL,
+    Estatus               varchar(20) NOT NULL CONSTRAINT DF_rh_vac_Est DEFAULT ('ABIERTA'),
+    Activo                bit NOT NULL CONSTRAINT DF_rh_vac_Activo DEFAULT (1),
+    FechaCreacion         datetime2(0) NOT NULL CONSTRAINT DF_rh_vac_FC DEFAULT (SYSDATETIME()),
+    FechaModificacion     datetime2(0) NULL,
+    CONSTRAINT FK_rh_vac_area        FOREIGN KEY (ID_Area)               REFERENCES core.area(ID_Area),
+    CONSTRAINT FK_rh_vac_puesto      FOREIGN KEY (ID_Puesto)             REFERENCES core.puesto(ID_Puesto),
+    CONSTRAINT FK_rh_vac_sucursal    FOREIGN KEY (ID_Sucursal)           REFERENCES core.sucursal(ID_Sucursal),
+    CONSTRAINT FK_rh_vac_solicita    FOREIGN KEY (ID_UsuarioSolicita)    REFERENCES core.usuario(ID_Usuario),
+    CONSTRAINT FK_rh_vac_responsable FOREIGN KEY (ID_UsuarioResponsable) REFERENCES core.usuario(ID_Usuario),
+    CONSTRAINT CHK_rh_vac_Estatus    CHECK (Estatus IN ('ABIERTA','PAUSADA','CERRADA','CANCELADA')),
+    CONSTRAINT CHK_rh_vac_Salario    CHECK (SalarioMin IS NULL OR SalarioMax IS NULL OR SalarioMin <= SalarioMax),
+    CONSTRAINT CHK_rh_vac_NPos       CHECK (NumeroPosiciones > 0),
+    CONSTRAINT CHK_rh_vac_Fechas     CHECK (FechaCierre IS NULL OR FechaCierre >= FechaPublicacion)
+);
+GO
+
+CREATE UNIQUE INDEX UQ_rh_vac_Folio ON rh.vacante(Folio) WHERE Folio IS NOT NULL;
+GO
+
+CREATE TABLE rh.vacante_log (
+    ID_Log         bigint IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    ID_Vacante     int NOT NULL,
+    EstadoAnterior varchar(20) NULL,
+    EstadoNuevo    varchar(20) NOT NULL,
+    Comentario     varchar(500) NULL,
+    ID_Usuario     int NULL,
+    Fecha          datetime2(0) NOT NULL CONSTRAINT DF_rh_vl_Fecha DEFAULT (SYSDATETIME()),
+    CONSTRAINT FK_rh_vl_vacante FOREIGN KEY (ID_Vacante) REFERENCES rh.vacante(ID_Vacante),
+    CONSTRAINT FK_rh_vl_usuario FOREIGN KEY (ID_Usuario) REFERENCES core.usuario(ID_Usuario),
+    CONSTRAINT CHK_rh_vl_EstadoNuevo CHECK (EstadoNuevo IN ('ABIERTA','PAUSADA','CERRADA','CANCELADA'))
+);
+GO
+
+CREATE TABLE rh.candidato (
+    ID_Candidato        int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    ID_Vacante          int NOT NULL,
+    ID_EstatusCandidato int NOT NULL,
+    Nombre              varchar(100)  NOT NULL,
+    ApellidoPaterno     varchar(100)  NULL,
+    ApellidoMaterno     varchar(100)  NULL,
+    Correo              varchar(150)  NULL,
+    Telefono            varchar(20)   NULL,
+    TelefonoAlterno     varchar(20)   NULL,
+    FechaNacimiento     date NULL,
+    Genero              varchar(20)   NULL,
+    RFC                 varchar(13)   NULL,
+    CURP                varchar(18)   NULL,
+    Escolaridad         varchar(100)  NULL,
+    Profesion           varchar(100)  NULL,
+    ExperienciaResumen  varchar(max)  NULL,
+    CV_URL              varchar(500)  NULL,
+    LinkedIn_URL        varchar(500)  NULL,
+    Fuente              varchar(50)   NULL,
+    PretensionSalarial  decimal(12,2) NULL,
+    FechaPostulacion    datetime2(0) NOT NULL CONSTRAINT DF_rh_can_FPost DEFAULT (SYSDATETIME()),
+    Observaciones       varchar(max)  NULL,
+    Activo              bit NOT NULL CONSTRAINT DF_rh_can_Activo DEFAULT (1),
+    FechaCreacion       datetime2(0) NOT NULL CONSTRAINT DF_rh_can_FC DEFAULT (SYSDATETIME()),
+    FechaModificacion   datetime2(0) NULL,
+    CONSTRAINT FK_rh_can_vacante  FOREIGN KEY (ID_Vacante)          REFERENCES rh.vacante(ID_Vacante),
+    CONSTRAINT FK_rh_can_estatus  FOREIGN KEY (ID_EstatusCandidato) REFERENCES rh.estatus_candidato(ID_EstatusCandidato),
+    CONSTRAINT CHK_rh_can_Genero  CHECK (Genero IS NULL OR Genero IN
+        ('FEMENINO','MASCULINO','NO_BINARIO','OTRO','PREFIERO_NO_DECIR'))
+);
+GO
+
+CREATE UNIQUE INDEX UQ_rh_can_Vacante_Correo
+    ON rh.candidato(ID_Vacante, Correo)
+    WHERE Correo IS NOT NULL;
+GO
+
+CREATE TABLE rh.candidato_log (
+    ID_Log             bigint IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    ID_Candidato       int NOT NULL,
+    ID_EstatusAnterior int NULL,
+    ID_EstatusNuevo    int NOT NULL,
+    Comentario         varchar(500) NULL,
+    ID_Usuario         int NULL,
+    Fecha              datetime2(0) NOT NULL CONSTRAINT DF_rh_cl_Fecha DEFAULT (SYSDATETIME()),
+    CONSTRAINT FK_rh_cl_candidato   FOREIGN KEY (ID_Candidato)        REFERENCES rh.candidato(ID_Candidato),
+    CONSTRAINT FK_rh_cl_estatus_ant FOREIGN KEY (ID_EstatusAnterior)  REFERENCES rh.estatus_candidato(ID_EstatusCandidato),
+    CONSTRAINT FK_rh_cl_estatus_nvo FOREIGN KEY (ID_EstatusNuevo)     REFERENCES rh.estatus_candidato(ID_EstatusCandidato),
+    CONSTRAINT FK_rh_cl_usuario     FOREIGN KEY (ID_Usuario)          REFERENCES core.usuario(ID_Usuario)
+);
+GO
+
+CREATE TABLE rh.entrevista (
+    ID_Entrevista           int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    ID_Candidato            int NOT NULL,
+    ID_Vacante              int NOT NULL,
+    ID_UsuarioEntrevistador int NULL,
+    TipoEntrevista          varchar(20) NOT NULL CONSTRAINT DF_rh_ent_Tipo DEFAULT ('PRESENCIAL'),
+    FechaEntrevista         datetime2(0) NOT NULL,
+    DuracionMinutos         int NULL,
+    Ubicacion               varchar(200) NULL,
+    Medio                   varchar(100) NULL,
+    Resultado               varchar(20)  NULL,
+    Calificacion            decimal(5,2) NULL,
+    Comentarios             varchar(max) NULL,
+    Activo                  bit NOT NULL CONSTRAINT DF_rh_ent_Activo DEFAULT (1),
+    FechaCreacion           datetime2(0) NOT NULL CONSTRAINT DF_rh_ent_FC DEFAULT (SYSDATETIME()),
+    FechaModificacion       datetime2(0) NULL,
+    CONSTRAINT FK_rh_ent_candidato      FOREIGN KEY (ID_Candidato)            REFERENCES rh.candidato(ID_Candidato),
+    CONSTRAINT FK_rh_ent_vacante        FOREIGN KEY (ID_Vacante)              REFERENCES rh.vacante(ID_Vacante),
+    CONSTRAINT FK_rh_ent_entrevistador  FOREIGN KEY (ID_UsuarioEntrevistador) REFERENCES core.usuario(ID_Usuario),
+    CONSTRAINT CHK_rh_ent_Tipo          CHECK (TipoEntrevista IN ('PRESENCIAL','VIRTUAL','TELEFONICA','TECNICA','RH','PANEL')),
+    CONSTRAINT CHK_rh_ent_Resultado     CHECK (Resultado IS NULL OR Resultado IN
+        ('PENDIENTE','APROBADO','RECHAZADO','REPROGRAMAR','NO_ASISTIO')),
+    CONSTRAINT CHK_rh_ent_Calificacion  CHECK (Calificacion IS NULL OR (Calificacion >= 0 AND Calificacion <= 10)),
+    CONSTRAINT CHK_rh_ent_Duracion      CHECK (DuracionMinutos IS NULL OR DuracionMinutos > 0)
+);
+GO
+
+CREATE TABLE rh.documento_candidato (
+    ID_DocumentoCandidato int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    ID_Candidato          int NOT NULL,
+    ID_Vacante            int NOT NULL,
+    TipoDocumento         varchar(50)  NOT NULL,
+    NombreArchivo         varchar(255) NOT NULL,
+    RutaArchivo           varchar(500) NULL,
+    Extension             varchar(10)  NULL,
+    TamanoBytes           bigint NULL,
+    Observaciones         varchar(300) NULL,
+    FechaCarga            datetime2(0) NOT NULL CONSTRAINT DF_rh_doc_FCarga DEFAULT (SYSDATETIME()),
+    Activo                bit NOT NULL CONSTRAINT DF_rh_doc_Activo DEFAULT (1),
+    FechaCreacion         datetime2(0) NOT NULL CONSTRAINT DF_rh_doc_FC DEFAULT (SYSDATETIME()),
+    FechaModificacion     datetime2(0) NULL,
+    ID_UsuarioCreo        int NULL,
+    CONSTRAINT FK_rh_doc_candidato FOREIGN KEY (ID_Candidato) REFERENCES rh.candidato(ID_Candidato),
+    CONSTRAINT FK_rh_doc_vacante   FOREIGN KEY (ID_Vacante)   REFERENCES rh.vacante(ID_Vacante),
+    CONSTRAINT FK_rh_doc_usuario   FOREIGN KEY (ID_UsuarioCreo) REFERENCES core.usuario(ID_Usuario),
+    CONSTRAINT CHK_rh_doc_Tipo     CHECK (TipoDocumento IN (
+        'CV','SOLICITUD','INE','CURP','RFC','COMPROBANTE_DOMICILIO','ACTA_NACIMIENTO',
+        'NSS','CONSTANCIA_FISCAL','CERTIFICADO_ESTUDIOS','REFERENCIAS','OTRO')),
+    CONSTRAINT CHK_rh_doc_Tamano   CHECK (TamanoBytes IS NULL OR TamanoBytes >= 0)
+);
+GO
+
+CREATE TABLE rh.nota_proceso (
+    ID_Nota       int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    ID_Vacante    int NULL,
+    ID_Candidato  int NULL,
+    Nota          varchar(max) NOT NULL,
+    ID_Usuario    int NOT NULL,
+    FechaCreacion datetime2(0) NOT NULL CONSTRAINT DF_rh_np_FC DEFAULT (SYSDATETIME()),
+    CONSTRAINT FK_rh_np_vacante   FOREIGN KEY (ID_Vacante)   REFERENCES rh.vacante(ID_Vacante),
+    CONSTRAINT FK_rh_np_candidato FOREIGN KEY (ID_Candidato) REFERENCES rh.candidato(ID_Candidato),
+    CONSTRAINT FK_rh_np_usuario   FOREIGN KEY (ID_Usuario)   REFERENCES core.usuario(ID_Usuario),
+    CONSTRAINT CHK_rh_np_Referencia CHECK (ID_Vacante IS NOT NULL OR ID_Candidato IS NOT NULL)
+);
+GO
+
+/* --- TRIGGERS rh (FIX-A) --- */
+IF OBJECT_ID('rh.TR_vacante_FM', 'TR') IS NOT NULL DROP TRIGGER rh.TR_vacante_FM;
+GO
+CREATE TRIGGER rh.TR_vacante_FM ON rh.vacante AFTER UPDATE
+AS BEGIN SET NOCOUNT ON; IF TRIGGER_NESTLEVEL() > 1 RETURN;
+    UPDATE v SET FechaModificacion = SYSDATETIME() FROM rh.vacante v INNER JOIN inserted i ON v.ID_Vacante = i.ID_Vacante; END;
+GO
+
+IF OBJECT_ID('rh.TR_candidato_FM', 'TR') IS NOT NULL DROP TRIGGER rh.TR_candidato_FM;
+GO
+CREATE TRIGGER rh.TR_candidato_FM ON rh.candidato AFTER UPDATE
+AS BEGIN SET NOCOUNT ON; IF TRIGGER_NESTLEVEL() > 1 RETURN;
+    UPDATE c SET FechaModificacion = SYSDATETIME() FROM rh.candidato c INNER JOIN inserted i ON c.ID_Candidato = i.ID_Candidato; END;
+GO
+
+IF OBJECT_ID('rh.TR_entrevista_FM', 'TR') IS NOT NULL DROP TRIGGER rh.TR_entrevista_FM;
+GO
+CREATE TRIGGER rh.TR_entrevista_FM ON rh.entrevista AFTER UPDATE
+AS BEGIN SET NOCOUNT ON; IF TRIGGER_NESTLEVEL() > 1 RETURN;
+    UPDATE e SET FechaModificacion = SYSDATETIME() FROM rh.entrevista e INNER JOIN inserted i ON e.ID_Entrevista = i.ID_Entrevista; END;
+GO
+
+IF OBJECT_ID('rh.TR_documento_candidato_FM', 'TR') IS NOT NULL DROP TRIGGER rh.TR_documento_candidato_FM;
+GO
+CREATE TRIGGER rh.TR_documento_candidato_FM ON rh.documento_candidato AFTER UPDATE
+AS BEGIN SET NOCOUNT ON; IF TRIGGER_NESTLEVEL() > 1 RETURN;
+    UPDATE d SET FechaModificacion = SYSDATETIME() FROM rh.documento_candidato d INNER JOIN inserted i ON d.ID_DocumentoCandidato = i.ID_DocumentoCandidato; END;
+GO
+
+CREATE INDEX IX_rh_vac_ID_Area      ON rh.vacante(ID_Area);
+CREATE INDEX IX_rh_vac_ID_Puesto    ON rh.vacante(ID_Puesto);
+CREATE INDEX IX_rh_vac_ID_Sucursal  ON rh.vacante(ID_Sucursal);
+CREATE INDEX IX_rh_vac_Estatus      ON rh.vacante(Estatus);
+CREATE INDEX IX_rh_vl_ID_Vacante    ON rh.vacante_log(ID_Vacante);
+CREATE INDEX IX_rh_vl_Fecha         ON rh.vacante_log(Fecha);
+CREATE INDEX IX_rh_can_ID_Vacante   ON rh.candidato(ID_Vacante);
+CREATE INDEX IX_rh_can_ID_Estatus   ON rh.candidato(ID_EstatusCandidato);
+CREATE INDEX IX_rh_can_Correo       ON rh.candidato(Correo);
+CREATE INDEX IX_rh_cl_ID_Candidato  ON rh.candidato_log(ID_Candidato);
+CREATE INDEX IX_rh_cl_Fecha         ON rh.candidato_log(Fecha);
+CREATE INDEX IX_rh_ent_ID_Candidato ON rh.entrevista(ID_Candidato);
+CREATE INDEX IX_rh_ent_ID_Vacante   ON rh.entrevista(ID_Vacante);
+CREATE INDEX IX_rh_ent_Fecha        ON rh.entrevista(FechaEntrevista);
+CREATE INDEX IX_rh_doc_ID_Candidato ON rh.documento_candidato(ID_Candidato);
+CREATE INDEX IX_rh_doc_ID_Vacante   ON rh.documento_candidato(ID_Vacante);
+CREATE INDEX IX_rh_np_ID_Vacante    ON rh.nota_proceso(ID_Vacante);
+CREATE INDEX IX_rh_np_ID_Candidato  ON rh.nota_proceso(ID_Candidato);
+GO
+
+/* ============================================================
+   SCHEMA: com
+============================================================ */
+
+CREATE TABLE com.meta_mes_portada (
+    ID_MetaMes         int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    Anio               int NOT NULL,
+    Mes                int NOT NULL,
+    Nombre             varchar(15) NOT NULL,
+    DiasHabiles        int NOT NULL,
+    FechaCreacion      datetime2(0) NOT NULL CONSTRAINT DF_com_mmp_FC DEFAULT (SYSDATETIME()),
+    FechaModificacion  datetime2(0) NULL,
+    ID_UsuarioCreo     int NULL,
+    ID_UsuarioModifico int NULL,
+    CONSTRAINT FK_com_mmp_usuario_creo FOREIGN KEY (ID_UsuarioCreo)     REFERENCES core.usuario(ID_Usuario),
+    CONSTRAINT FK_com_mmp_usuario_mod  FOREIGN KEY (ID_UsuarioModifico) REFERENCES core.usuario(ID_Usuario),
+    CONSTRAINT CHK_com_mmp_Mes         CHECK (Mes BETWEEN 1 AND 12),
+    CONSTRAINT CHK_com_mmp_DiasHabiles CHECK (DiasHabiles BETWEEN 1 AND 31),
+    CONSTRAINT UQ_com_mmp              UNIQUE (Anio, Mes)
+);
+GO
+
+CREATE TABLE com.meta_mensual_contenido (
+    ID_Meta            int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    ID_MetaMes         int NOT NULL,
+    IdUnidad           int NOT NULL,
+    IdLineaArticulo    int NOT NULL,
+    Meta               decimal(18,4) NOT NULL,
+    Porcentaje         decimal(18,4) NOT NULL,
+    Mezcla             decimal(18,4) NOT NULL,
+    FechaCreacion      datetime2(0) NOT NULL CONSTRAINT DF_com_mmc_FC DEFAULT (SYSDATETIME()),
+    FechaModificacion  datetime2(0) NULL,
+    ID_UsuarioCreo     int NULL,
+    ID_UsuarioModifico int NULL,
+    CONSTRAINT FK_com_mmc_meta_mes     FOREIGN KEY (ID_MetaMes)         REFERENCES com.meta_mes_portada(ID_MetaMes),
+    CONSTRAINT FK_com_mmc_unidad       FOREIGN KEY (IdUnidad)           REFERENCES ped.unidadoperacional(IdUnidad),
+    CONSTRAINT FK_com_mmc_linea        FOREIGN KEY (IdLineaArticulo)    REFERENCES cat.linea_articulo(IdLineaArticulo),
+    CONSTRAINT FK_com_mmc_usuario_creo FOREIGN KEY (ID_UsuarioCreo)     REFERENCES core.usuario(ID_Usuario),
+    CONSTRAINT FK_com_mmc_usuario_mod  FOREIGN KEY (ID_UsuarioModifico) REFERENCES core.usuario(ID_Usuario),
+    CONSTRAINT CHK_com_mmc_Meta        CHECK (Meta >= 0),
+    CONSTRAINT UQ_com_mmc              UNIQUE (ID_MetaMes, IdUnidad, IdLineaArticulo)
+);
+GO
+
+CREATE TABLE com.semana (
+    ID_Semana        int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    Anio             int NOT NULL,
+    Semana           int NOT NULL,
+    FechaInicio      date NOT NULL,
+    FechaFin         date NOT NULL,
+    ID_MetaMesInicio int NOT NULL,
+    ID_MetaMesFinal  int NOT NULL,
+    DiasMesInicio    int NOT NULL,
+    DiasMesFinal     int NOT NULL,
+    FechaCreacion    datetime2(0) NOT NULL CONSTRAINT DF_com_semana_FC DEFAULT (SYSDATETIME()),
+    ID_UsuarioCreo   int NULL,
+    CONSTRAINT FK_com_semana_mes_inicio FOREIGN KEY (ID_MetaMesInicio) REFERENCES com.meta_mes_portada(ID_MetaMes),
+    CONSTRAINT FK_com_semana_mes_final  FOREIGN KEY (ID_MetaMesFinal)  REFERENCES com.meta_mes_portada(ID_MetaMes),
+    CONSTRAINT FK_com_semana_usuario    FOREIGN KEY (ID_UsuarioCreo)   REFERENCES core.usuario(ID_Usuario),
+    CONSTRAINT CHK_com_semana_num       CHECK (Semana BETWEEN 1 AND 53),
+    CONSTRAINT CHK_com_semana_anio      CHECK (Anio >= 2000),
+    CONSTRAINT CHK_com_semana_fechas    CHECK (FechaFin >= FechaInicio),
+    CONSTRAINT CHK_com_semana_dias_ini  CHECK (DiasMesInicio BETWEEN 0 AND 7),
+    CONSTRAINT CHK_com_semana_dias_fin  CHECK (DiasMesFinal  BETWEEN 0 AND 7),
+    CONSTRAINT CHK_com_semana_dias_tot  CHECK ((DiasMesInicio + DiasMesFinal) BETWEEN 1 AND 7),
+    CONSTRAINT UQ_com_semana            UNIQUE (Anio, Semana)
+);
+GO
+
+-- [FIX-B] Ahora sí se puede agregar la FK de ped.pedidos → com.semana
+ALTER TABLE ped.pedidos
+    ADD CONSTRAINT FK_ped_ped_semana
+        FOREIGN KEY (ID_Semana) REFERENCES com.semana(ID_Semana);
+GO
+
+CREATE TABLE com.meta_semanal (
+    ID_MetaSemanal  int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    ID_Semana       int NOT NULL,
+    IdUnidad        int NOT NULL,
+    IdLineaArticulo int NOT NULL,
+    MetaSemanal     decimal(18,4) NOT NULL,
+    FechaCalculo    datetime2(0) NOT NULL CONSTRAINT DF_com_ms_FC DEFAULT (SYSDATETIME()),
+    CONSTRAINT FK_com_ms_semana FOREIGN KEY (ID_Semana)       REFERENCES com.semana(ID_Semana),
+    CONSTRAINT FK_com_ms_unidad FOREIGN KEY (IdUnidad)        REFERENCES ped.unidadoperacional(IdUnidad),
+    CONSTRAINT FK_com_ms_linea  FOREIGN KEY (IdLineaArticulo) REFERENCES cat.linea_articulo(IdLineaArticulo),
+    CONSTRAINT CHK_com_ms_meta  CHECK (MetaSemanal >= 0),
+    CONSTRAINT UQ_com_ms        UNIQUE (ID_Semana, IdUnidad, IdLineaArticulo)
+);
+GO
+
+CREATE TABLE com.indicador (
+    ID_Indicador int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    Clave        varchar(20)  NOT NULL,
+    Nombre       varchar(100) NOT NULL,
+    Categoria    varchar(30)  NOT NULL,
+    OrdenResumen int NOT NULL DEFAULT (0),
+    Activo       bit NOT NULL CONSTRAINT DF_com_ind_Activo DEFAULT (1),
+    CONSTRAINT UQ_com_ind_Clave    UNIQUE (Clave),
+    CONSTRAINT CHK_com_ind_Clave   CHECK (LEN(LTRIM(RTRIM(Clave))) > 0),
+    CONSTRAINT CHK_com_ind_Categ   CHECK (Categoria IN ('VENTAS','CALIDAD','DOCUMENTOS'))
+);
+GO
+
+CREATE TABLE com.sub_indicador (
+    ID_SubIndicador int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    ID_Indicador    int NOT NULL,
+    Clave           varchar(20)  NOT NULL,
+    Nombre          varchar(100) NOT NULL,
+    Orden           int NOT NULL DEFAULT (0),
+    Activo          bit NOT NULL CONSTRAINT DF_com_si_Activo DEFAULT (1),
+    CONSTRAINT FK_com_si_indicador FOREIGN KEY (ID_Indicador) REFERENCES com.indicador(ID_Indicador),
+    CONSTRAINT UQ_com_si           UNIQUE (ID_Indicador, Clave),
+    CONSTRAINT CHK_com_si_Clave    CHECK (LEN(LTRIM(RTRIM(Clave))) > 0)
+);
+GO
+
+CREATE TABLE com.regla_comision (
+    ID_Regla          int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    ID_Indicador      int NOT NULL,
+    ID_SubIndicador   int NULL,
+    Puesto            varchar(30) NULL,
+    Canal             varchar(30) NULL,
+    TCE               varchar(5)  NULL,
+    PorcentajeMinimo  decimal(10,6) NOT NULL DEFAULT (0),
+    PorcentajeMaximo  decimal(10,6) NOT NULL DEFAULT (9.9999),
+    Monto             decimal(18,2) NOT NULL,
+    Factor            decimal(10,6) NULL,
+    Activo            bit NOT NULL CONSTRAINT DF_com_rc_Activo DEFAULT (1),
+    FechaCreacion     datetime2(0) NOT NULL CONSTRAINT DF_com_rc_FC DEFAULT (SYSDATETIME()),
+    FechaModificacion datetime2(0) NOT NULL CONSTRAINT DF_com_rc_FM DEFAULT (SYSDATETIME()),
+    ID_UsuarioCreo    int NULL,
+    CONSTRAINT FK_com_rc_indicador    FOREIGN KEY (ID_Indicador)    REFERENCES com.indicador(ID_Indicador),
+    CONSTRAINT FK_com_rc_subindicador FOREIGN KEY (ID_SubIndicador) REFERENCES com.sub_indicador(ID_SubIndicador),
+    CONSTRAINT FK_com_rc_usuario      FOREIGN KEY (ID_UsuarioCreo)  REFERENCES core.usuario(ID_Usuario),
+    CONSTRAINT CHK_com_rc_Puesto      CHECK (Puesto IS NULL OR Puesto IN ('VENDEDOR','SUPERVISOR')),
+    CONSTRAINT CHK_com_rc_Canal       CHECK (Canal  IS NULL OR Canal  IN ('TRADICIONAL','MODERNO')),
+    CONSTRAINT CHK_com_rc_TCE         CHECK (TCE    IS NULL OR TCE    IN ('VT','VM','XT','XM')),
+    CONSTRAINT CHK_com_rc_Rango       CHECK (PorcentajeMinimo >= 0 AND PorcentajeMaximo >= PorcentajeMinimo),
+    CONSTRAINT CHK_com_rc_Monto       CHECK (Monto >= 0),
+    CONSTRAINT CHK_com_rc_Factor      CHECK (Factor IS NULL OR Factor >= 0)
+);
+GO
+
+CREATE TABLE com.corrida_comision (
+    ID_Corrida         int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    ID_Semana          int NOT NULL,
+    FechaInicio        date NULL,
+    FechaFin           date NULL,
+    Estatus            varchar(20) NOT NULL CONSTRAINT DF_com_cc_Estatus DEFAULT ('BORRADOR'),
+    ArchivoOrigen      varchar(255) NULL,
+    Observaciones      varchar(500) NULL,
+    FechaCreacion      datetime2(0) NOT NULL CONSTRAINT DF_com_cc_FC DEFAULT (SYSDATETIME()),
+    FechaModificacion  datetime2(0) NOT NULL CONSTRAINT DF_com_cc_FM DEFAULT (SYSDATETIME()),
+    ID_UsuarioCreo     int NULL,
+    ID_UsuarioModifico int NULL,
+    CONSTRAINT FK_com_cc_semana       FOREIGN KEY (ID_Semana)          REFERENCES com.semana(ID_Semana),
+    CONSTRAINT FK_com_cc_usuario_creo FOREIGN KEY (ID_UsuarioCreo)     REFERENCES core.usuario(ID_Usuario),
+    CONSTRAINT FK_com_cc_usuario_mod  FOREIGN KEY (ID_UsuarioModifico) REFERENCES core.usuario(ID_Usuario),
+    CONSTRAINT CHK_com_cc_Estatus     CHECK (Estatus IN ('BORRADOR','EN_PROCESO','CALCULADO','APROBADO','PAGADO','CANCELADO')),
+    CONSTRAINT CHK_com_cc_Fechas      CHECK (FechaInicio IS NULL OR FechaFin IS NULL OR FechaFin >= FechaInicio)
+);
+GO
+
+CREATE TABLE com.comision_base (
+    ID_Comision        int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    ID_Semana          int NOT NULL,
+    IdUnidad           int NOT NULL,
+    Numero_Empleado    int NOT NULL,
+    Estatus            varchar(20) NOT NULL CONSTRAINT DF_com_cb_Estatus DEFAULT ('BORRADOR'),
+    ArchivoOrigen      varchar(255) NULL,
+    Observaciones      varchar(500) NULL,
+    FechaCreacion      datetime2(0) NOT NULL CONSTRAINT DF_com_cb_FC DEFAULT (SYSDATETIME()),
+    FechaModificacion  datetime2(0) NOT NULL CONSTRAINT DF_com_cb_FM DEFAULT (SYSDATETIME()),
+    ID_UsuarioCreo     int NULL,
+    ID_UsuarioModifico int NULL,
+    CONSTRAINT UQ_com_cb              UNIQUE (ID_Semana, IdUnidad, Numero_Empleado),
+    CONSTRAINT FK_com_cb_semana       FOREIGN KEY (ID_Semana)          REFERENCES com.semana(ID_Semana),
+    CONSTRAINT FK_com_cb_unidad       FOREIGN KEY (IdUnidad)           REFERENCES ped.unidadoperacional(IdUnidad),
+    CONSTRAINT FK_com_cb_empleado     FOREIGN KEY (Numero_Empleado)    REFERENCES core.empleado(Numero_Empleado),
+    CONSTRAINT FK_com_cb_usuario_creo FOREIGN KEY (ID_UsuarioCreo)     REFERENCES core.usuario(ID_Usuario),
+    CONSTRAINT FK_com_cb_usuario_mod  FOREIGN KEY (ID_UsuarioModifico) REFERENCES core.usuario(ID_Usuario),
+    CONSTRAINT CHK_com_cb_Estatus     CHECK (Estatus IN ('BORRADOR','EN_PROCESO','CALCULADO','APROBADO','PAGADO','CANCELADO'))
+);
+GO
+
+CREATE TABLE com.base_comision_semanal (
+    ID_Base         int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    ID_Corrida      int NOT NULL,
+    Numero_Empleado int NOT NULL,
+    Sucursal        varchar(100) NOT NULL,
+    NombreEmpleado  varchar(150) NOT NULL,
+    Ruta            varchar(30)  NULL,
+    Puesto          varchar(30)  NULL,
+    Canal           varchar(30)  NULL,
+    TCE             varchar(5)   NULL,
+    Activo          bit NOT NULL CONSTRAINT DF_com_bcs_Activo DEFAULT (1),
+    FechaCreacion   datetime2(0) NOT NULL CONSTRAINT DF_com_bcs_FC DEFAULT (SYSDATETIME()),
+    ID_UsuarioCreo  int NULL,
+    CONSTRAINT UQ_com_bcs          UNIQUE (ID_Corrida, Numero_Empleado),
+    CONSTRAINT FK_com_bcs_corrida  FOREIGN KEY (ID_Corrida)       REFERENCES com.corrida_comision(ID_Corrida),
+    CONSTRAINT FK_com_bcs_empleado FOREIGN KEY (Numero_Empleado)  REFERENCES core.empleado(Numero_Empleado),
+    CONSTRAINT FK_com_bcs_usuario  FOREIGN KEY (ID_UsuarioCreo)   REFERENCES core.usuario(ID_Usuario),
+    CONSTRAINT CHK_com_bcs_Puesto  CHECK (Puesto IS NULL OR Puesto IN ('VENDEDOR','SUPERVISOR')),
+    CONSTRAINT CHK_com_bcs_Canal   CHECK (Canal  IS NULL OR Canal  IN ('TRADICIONAL','MODERNO')),
+    CONSTRAINT CHK_com_bcs_TCE     CHECK (TCE    IS NULL OR TCE    IN ('VT','VM','XT','XM'))
+);
+GO
+
+CREATE TABLE com.resultado_indicador (
+    ID_Resultado           int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    ID_Base                int NOT NULL,
+    ID_Indicador           int NOT NULL,
+    ID_SubIndicador        int NULL,
+    ValorReal              decimal(18,6) NULL,
+    Meta                   decimal(18,6) NULL,
+    ClientesActivos        int NULL,
+    ClientesVisitados      int NULL,
+    ClientesConCompra      int NULL,
+    PorcentajeCumplimiento decimal(10,6) NULL,
+    MontoCalculado         decimal(18,2) NULL,
+    Observaciones          varchar(300) NULL,
+    FechaCreacion          datetime2(0) NOT NULL CONSTRAINT DF_com_ri_FC DEFAULT (SYSDATETIME()),
+    ID_UsuarioCreo         int NULL,
+    CONSTRAINT FK_com_ri_base         FOREIGN KEY (ID_Base)           REFERENCES com.base_comision_semanal(ID_Base),
+    CONSTRAINT FK_com_ri_indicador    FOREIGN KEY (ID_Indicador)      REFERENCES com.indicador(ID_Indicador),
+    CONSTRAINT FK_com_ri_subindicador FOREIGN KEY (ID_SubIndicador)   REFERENCES com.sub_indicador(ID_SubIndicador),
+    CONSTRAINT FK_com_ri_usuario      FOREIGN KEY (ID_UsuarioCreo)    REFERENCES core.usuario(ID_Usuario),
+    CONSTRAINT UQ_com_ri              UNIQUE (ID_Base, ID_Indicador, ID_SubIndicador),
+    CONSTRAINT CHK_com_ri_Pct         CHECK (PorcentajeCumplimiento IS NULL OR PorcentajeCumplimiento >= 0),
+    CONSTRAINT CHK_com_ri_Monto       CHECK (MontoCalculado IS NULL OR MontoCalculado >= 0),
+    CONSTRAINT CHK_com_ri_Clientes_A  CHECK (ClientesActivos   IS NULL OR ClientesActivos   >= 0),
+    CONSTRAINT CHK_com_ri_Clientes_V  CHECK (ClientesVisitados IS NULL OR ClientesVisitados >= 0),
+    CONSTRAINT CHK_com_ri_Clientes_C  CHECK (ClientesConCompra IS NULL OR ClientesConCompra >= 0)
+);
+GO
+
+CREATE TABLE com.resultado_doc (
+    ID_ResultadoDoc int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    ID_Base         int NOT NULL,
+    ID_SubIndicador int NOT NULL,
+    Cumplido        bit NULL,
+    MontoConcepto   decimal(18,2) NULL,
+    AlcancePesos    decimal(18,2) NULL,
+    Observaciones   varchar(200) NULL,
+    FechaCreacion   datetime2(0) NOT NULL CONSTRAINT DF_com_rdoc_FC DEFAULT (SYSDATETIME()),
+    ID_UsuarioCreo  int NULL,
+    CONSTRAINT FK_com_rdoc_base    FOREIGN KEY (ID_Base)          REFERENCES com.base_comision_semanal(ID_Base),
+    CONSTRAINT FK_com_rdoc_subind  FOREIGN KEY (ID_SubIndicador)  REFERENCES com.sub_indicador(ID_SubIndicador),
+    CONSTRAINT FK_com_rdoc_usuario FOREIGN KEY (ID_UsuarioCreo)   REFERENCES core.usuario(ID_Usuario),
+    CONSTRAINT UQ_com_rdoc         UNIQUE (ID_Base, ID_SubIndicador),
+    CONSTRAINT CHK_com_rdoc_Monto  CHECK (MontoConcepto IS NULL OR MontoConcepto >= 0),
+    CONSTRAINT CHK_com_rdoc_Alc    CHECK (AlcancePesos  IS NULL OR AlcancePesos  >= 0)
+);
+GO
+
+CREATE TABLE com.ajuste_comision (
+    ID_Ajuste      int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    ID_Base        int NOT NULL,
+    TipoAjuste     varchar(20) NOT NULL,
+    DiasDescuento  int NULL,
+    Monto          decimal(18,2) NOT NULL,
+    Motivo         varchar(300) NULL,
+    FechaCreacion  datetime2(0) NOT NULL CONSTRAINT DF_com_aj_FC DEFAULT (SYSDATETIME()),
+    ID_UsuarioCreo int NULL,
+    CONSTRAINT FK_com_aj_base    FOREIGN KEY (ID_Base)        REFERENCES com.base_comision_semanal(ID_Base),
+    CONSTRAINT FK_com_aj_usuario FOREIGN KEY (ID_UsuarioCreo) REFERENCES core.usuario(ID_Usuario),
+    CONSTRAINT CHK_com_aj_Tipo   CHECK (TipoAjuste IN ('DESCUENTO','AGREGADO','SR1','SR2')),
+    CONSTRAINT CHK_com_aj_Dias   CHECK (DiasDescuento IS NULL OR DiasDescuento >= 0),
+    CONSTRAINT CHK_com_aj_Monto  CHECK (Monto >= 0)
+);
+GO
+
+CREATE TABLE com.calculo_comision (
+    ID_Calculo      int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    ID_Base         int NOT NULL,
+    MontoBruto      decimal(18,2) NULL,
+    TotalDescuentos decimal(18,2) NOT NULL DEFAULT (0),
+    TotalAgregados  decimal(18,2) NOT NULL DEFAULT (0),
+    MontoFinal      decimal(18,2) NOT NULL DEFAULT (0),
+    Estatus         varchar(20) NOT NULL CONSTRAINT DF_com_cal_Estatus DEFAULT ('CALCULADO'),
+    FechaCalculo    datetime2(0) NOT NULL CONSTRAINT DF_com_cal_FC DEFAULT (SYSDATETIME()),
+    CalculadoPor    int NULL,
+    Aprobado        bit NOT NULL DEFAULT (0),
+    FechaAprobacion datetime2(0) NULL,
+    AprobadoPor     int NULL,
+    Observaciones   varchar(500) NULL,
+    CONSTRAINT FK_com_cal_base          FOREIGN KEY (ID_Base)       REFERENCES com.base_comision_semanal(ID_Base),
+    CONSTRAINT FK_com_cal_calculado_por FOREIGN KEY (CalculadoPor)  REFERENCES core.usuario(ID_Usuario),
+    CONSTRAINT FK_com_cal_aprobado_por  FOREIGN KEY (AprobadoPor)   REFERENCES core.usuario(ID_Usuario),
+    CONSTRAINT UQ_com_cal_base          UNIQUE (ID_Base),
+    CONSTRAINT CHK_com_cal_Estatus     CHECK (Estatus IN ('CALCULADO','APROBADO','PAGADO','RECHAZADO','CANCELADO')),
+    CONSTRAINT CHK_com_cal_Bruto       CHECK (MontoBruto IS NULL OR MontoBruto >= 0),
+    CONSTRAINT CHK_com_cal_Desc        CHECK (TotalDescuentos >= 0),
+    CONSTRAINT CHK_com_cal_Agr         CHECK (TotalAgregados  >= 0),
+    CONSTRAINT CHK_com_cal_Final       CHECK (MontoFinal >= 0)
+);
+GO
+
+CREATE TABLE com.corrida_comision_log (
+    ID_Log         bigint IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    ID_Corrida     int NOT NULL,
+    EstadoAnterior varchar(20) NULL,
+    EstadoNuevo    varchar(20) NOT NULL,
+    Comentario     varchar(500) NULL,
+    ID_Usuario     int NULL,
+    Fecha          datetime2(0) NOT NULL CONSTRAINT DF_com_ccl_Fecha DEFAULT (SYSDATETIME()),
+    IP             varchar(45) NULL,
+    CONSTRAINT FK_com_ccl_corrida FOREIGN KEY (ID_Corrida) REFERENCES com.corrida_comision(ID_Corrida),
+    CONSTRAINT FK_com_ccl_usuario FOREIGN KEY (ID_Usuario) REFERENCES core.usuario(ID_Usuario),
+    CONSTRAINT CHK_com_ccl_EstadoNuevo CHECK (EstadoNuevo IN
+        ('BORRADOR','EN_PROCESO','CALCULADO','APROBADO','PAGADO','CANCELADO'))
+);
+GO
+
+CREATE TABLE com.regla_comision_historial (
+    ID_Historial     int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    ID_Regla         int NOT NULL,
+    PorcentajeMinimo decimal(10,6) NOT NULL,
+    PorcentajeMaximo decimal(10,6) NOT NULL,
+    Monto            decimal(18,2) NOT NULL,
+    Factor           decimal(10,6) NULL,
+    Activo           bit NOT NULL,
+    Accion           varchar(10) NOT NULL,
+    ID_Usuario       int NULL,
+    Fecha            datetime2(0) NOT NULL CONSTRAINT DF_com_rch_Fecha DEFAULT (SYSDATETIME()),
+    CONSTRAINT FK_com_rch_regla   FOREIGN KEY (ID_Regla)    REFERENCES com.regla_comision(ID_Regla),
+    CONSTRAINT FK_com_rch_usuario FOREIGN KEY (ID_Usuario)  REFERENCES core.usuario(ID_Usuario),
+    CONSTRAINT CHK_com_rch_Accion CHECK (Accion IN ('INSERT','UPDATE','DELETE'))
+);
+GO
+
+/* --- TRIGGERS com (FIX-A) --- */
+IF OBJECT_ID('com.TR_corrida_comision_FM', 'TR') IS NOT NULL DROP TRIGGER com.TR_corrida_comision_FM;
+GO
+CREATE TRIGGER com.TR_corrida_comision_FM
+ON com.corrida_comision AFTER UPDATE
+AS BEGIN
+    SET NOCOUNT ON; IF TRIGGER_NESTLEVEL() > 1 RETURN;
+    UPDATE c SET FechaModificacion = SYSDATETIME()
+    FROM com.corrida_comision c INNER JOIN inserted i ON c.ID_Corrida = i.ID_Corrida;
+END;
+GO
+
+IF OBJECT_ID('com.TR_comision_base_FM', 'TR') IS NOT NULL DROP TRIGGER com.TR_comision_base_FM;
+GO
+CREATE TRIGGER com.TR_comision_base_FM
+ON com.comision_base AFTER UPDATE
+AS BEGIN
+    SET NOCOUNT ON; IF TRIGGER_NESTLEVEL() > 1 RETURN;
+    UPDATE c SET FechaModificacion = SYSDATETIME()
+    FROM com.comision_base c INNER JOIN inserted i ON c.ID_Comision = i.ID_Comision;
+END;
+GO
+
+IF OBJECT_ID('com.TR_regla_comision_FM', 'TR') IS NOT NULL DROP TRIGGER com.TR_regla_comision_FM;
+GO
+CREATE TRIGGER com.TR_regla_comision_FM
+ON com.regla_comision AFTER INSERT, UPDATE, DELETE
+AS BEGIN
+    SET NOCOUNT ON; IF TRIGGER_NESTLEVEL() > 1 RETURN;
+    IF EXISTS (SELECT 1 FROM inserted) AND EXISTS (SELECT 1 FROM deleted)
+    BEGIN
+        UPDATE r SET FechaModificacion = SYSDATETIME()
+        FROM com.regla_comision r INNER JOIN inserted i ON r.ID_Regla = i.ID_Regla;
+    END;
+    INSERT INTO com.regla_comision_historial
+        (ID_Regla, PorcentajeMinimo, PorcentajeMaximo, Monto, Factor, Activo, Accion)
+    SELECT d.ID_Regla, d.PorcentajeMinimo, d.PorcentajeMaximo, d.Monto, d.Factor, d.Activo,
+           CASE WHEN EXISTS (SELECT 1 FROM inserted) THEN 'UPDATE' ELSE 'DELETE' END
+    FROM deleted d;
+    INSERT INTO com.regla_comision_historial
+        (ID_Regla, PorcentajeMinimo, PorcentajeMaximo, Monto, Factor, Activo, Accion)
+    SELECT i.ID_Regla, i.PorcentajeMinimo, i.PorcentajeMaximo, i.Monto, i.Factor, i.Activo, 'INSERT'
+    FROM inserted i WHERE NOT EXISTS (SELECT 1 FROM deleted);
+END;
+GO
+
+CREATE INDEX IX_com_mmc_ID_MetaMes     ON com.meta_mensual_contenido(ID_MetaMes);
+CREATE INDEX IX_com_mmc_IdUnidad       ON com.meta_mensual_contenido(IdUnidad);
+CREATE INDEX IX_com_mmc_IdLinea        ON com.meta_mensual_contenido(IdLineaArticulo);
+CREATE INDEX IX_com_semana_Anio_Semana ON com.semana(Anio, Semana);
+CREATE INDEX IX_com_semana_mes_inicio  ON com.semana(ID_MetaMesInicio);
+CREATE INDEX IX_com_semana_mes_final   ON com.semana(ID_MetaMesFinal);
+CREATE INDEX IX_com_ms_ID_Semana       ON com.meta_semanal(ID_Semana);
+CREATE INDEX IX_com_ms_IdUnidad        ON com.meta_semanal(IdUnidad);
+CREATE INDEX IX_com_ms_IdLinea         ON com.meta_semanal(IdLineaArticulo);
+CREATE INDEX IX_com_si_ID_Indicador    ON com.sub_indicador(ID_Indicador);
+CREATE INDEX IX_com_rc_Indicador_TCE   ON com.regla_comision(ID_Indicador, TCE, Activo,
+    PorcentajeMinimo, PorcentajeMaximo) INCLUDE (Monto, Factor);
+CREATE INDEX IX_com_rch_ID_Regla       ON com.regla_comision_historial(ID_Regla);
+CREATE INDEX IX_com_cc_ID_Semana       ON com.corrida_comision(ID_Semana);
+CREATE INDEX IX_com_cc_Estatus         ON com.corrida_comision(Estatus);
+CREATE INDEX IX_com_ccl_ID_Corrida     ON com.corrida_comision_log(ID_Corrida);
+CREATE INDEX IX_com_cb_ID_Semana       ON com.comision_base(ID_Semana);
+CREATE INDEX IX_com_cb_IdUnidad        ON com.comision_base(IdUnidad);
+CREATE INDEX IX_com_cb_Empleado        ON com.comision_base(Numero_Empleado);
+CREATE INDEX IX_com_bcs_ID_Corrida     ON com.base_comision_semanal(ID_Corrida);
+CREATE INDEX IX_com_bcs_Empleado       ON com.base_comision_semanal(Numero_Empleado);
+CREATE INDEX IX_com_bcs_TCE            ON com.base_comision_semanal(TCE);
+CREATE INDEX IX_com_ri_ID_Base         ON com.resultado_indicador(ID_Base);
+CREATE INDEX IX_com_ri_ID_Indicador    ON com.resultado_indicador(ID_Indicador);
+CREATE INDEX IX_com_ri_ID_SubIndicador ON com.resultado_indicador(ID_SubIndicador);
+CREATE INDEX IX_com_rdoc_ID_Base       ON com.resultado_doc(ID_Base);
+CREATE INDEX IX_com_rdoc_ID_SubInd     ON com.resultado_doc(ID_SubIndicador);
+CREATE INDEX IX_com_aj_ID_Base         ON com.ajuste_comision(ID_Base, TipoAjuste);
+CREATE INDEX IX_com_cal_ID_Base        ON com.calculo_comision(ID_Base);
+CREATE INDEX IX_com_cal_Estatus        ON com.calculo_comision(Estatus);
+GO
+
+/* ============================================================
+   TABLAS ADICIONALES
+============================================================ */
+
+CREATE TABLE core.sesion (
+    ID_Sesion        uniqueidentifier NOT NULL PRIMARY KEY DEFAULT (NEWID()),
+    ID_Usuario       int NOT NULL,
+    Token            varchar(512) NOT NULL,
+    IPOrigen         varchar(45)  NULL,
+    UserAgent        varchar(500) NULL,
+    Dispositivo      varchar(100) NULL,
+    FechaCreacion    datetime2(0) NOT NULL CONSTRAINT DF_core_ses_FC DEFAULT (SYSDATETIME()),
+    FechaExpiracion  datetime2(0) NOT NULL,
+    FechaUltimoUso   datetime2(0) NULL,
+    Revocada         bit NOT NULL CONSTRAINT DF_core_ses_Rev DEFAULT (0),
+    MotivoRevocacion varchar(100) NULL,
+    CONSTRAINT FK_core_ses_usuario     FOREIGN KEY (ID_Usuario) REFERENCES core.usuario(ID_Usuario),
+    CONSTRAINT UQ_core_ses_Token       UNIQUE (Token),
+    CONSTRAINT CHK_core_ses_Expiracion CHECK (FechaExpiracion > FechaCreacion)
+);
+GO
+
+CREATE INDEX IX_core_ses_Usuario ON core.sesion(ID_Usuario);
+CREATE INDEX IX_core_ses_Token   ON core.sesion(Token)           WHERE Revocada = 0;
+CREATE INDEX IX_core_ses_Expira  ON core.sesion(FechaExpiracion) WHERE Revocada = 0;
+GO
+
+CREATE TABLE core.auditoria (
+    ID_Auditoria    bigint IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    Schema_Tabla    varchar(100) NOT NULL,
+    ID_Registro     varchar(100) NOT NULL,
+    Accion          varchar(10)  NOT NULL,
+    CampoModificado varchar(100) NULL,
+    ValorAnterior   nvarchar(max) NULL,
+    ValorNuevo      nvarchar(max) NULL,
+    ID_Usuario      int NULL,
+    FechaHora       datetime2(0) NOT NULL CONSTRAINT DF_core_aud_FH DEFAULT (SYSDATETIME()),
+    IP              varchar(45)  NULL,
+    Aplicacion      varchar(50)  NULL,
+    CONSTRAINT CHK_core_aud_Accion CHECK (Accion IN ('INSERT','UPDATE','DELETE'))
+);
+GO
+
+CREATE INDEX IX_core_aud_Tabla   ON core.auditoria(Schema_Tabla, ID_Registro);
+CREATE INDEX IX_core_aud_Usuario ON core.auditoria(ID_Usuario);
+CREATE INDEX IX_core_aud_Fecha   ON core.auditoria(FechaHora);
+GO
+
+CREATE TABLE core.notificacion (
+    ID_Notificacion int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    ID_Usuario      int NOT NULL,
+    Tipo            varchar(50) NOT NULL,
+    Modulo          varchar(30) NOT NULL,
+    ID_Referencia   int NULL,
+    Titulo          varchar(200) NOT NULL,
+    Mensaje         varchar(max) NULL,
+    Leida           bit NOT NULL CONSTRAINT DF_core_noti_Leida DEFAULT (0),
+    FechaLeida      datetime2(0) NULL,
+    FechaCreacion   datetime2(0) NOT NULL CONSTRAINT DF_core_noti_FC DEFAULT (SYSDATETIME()),
+    FechaExpiracion datetime2(0) NULL,
+    CONSTRAINT FK_core_noti_usuario FOREIGN KEY (ID_Usuario) REFERENCES core.usuario(ID_Usuario),
+    CONSTRAINT CHK_core_noti_Tipo   CHECK (Tipo IN ('TICKET','COMISION','VACANTE','PEDIDO','SISTEMA','RH'))
+);
+GO
+
+CREATE INDEX IX_core_noti_Usuario_Leida ON core.notificacion(ID_Usuario, Leida);
+CREATE INDEX IX_core_noti_Fecha         ON core.notificacion(FechaCreacion);
+GO
+
+CREATE TABLE core.parametro (
+    ID_Parametro       int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    Clave              varchar(100) NOT NULL,
+    Valor              varchar(500) NOT NULL,
+    TipoDato           varchar(20)  NOT NULL,
+    Modulo             varchar(30)  NOT NULL,
+    Descripcion        varchar(300) NULL,
+    Activo             bit NOT NULL CONSTRAINT DF_core_par_Activo DEFAULT (1),
+    FechaCreacion      datetime2(0) NOT NULL CONSTRAINT DF_core_par_FC DEFAULT (SYSDATETIME()),
+    FechaModificacion  datetime2(0) NULL,
+    ID_UsuarioModifico int NULL,
+    CONSTRAINT UQ_core_par_Clave      UNIQUE (Clave),
+    CONSTRAINT CHK_core_par_TipoDato  CHECK (TipoDato IN ('INT','BOOL','STRING','DECIMAL','JSON')),
+    CONSTRAINT FK_core_par_usuario    FOREIGN KEY (ID_UsuarioModifico) REFERENCES core.usuario(ID_Usuario)
+);
+GO
+
+INSERT INTO core.parametro (Clave, Valor, TipoDato, Modulo, Descripcion) VALUES
+('LOGIN_MAX_INTENTOS',      '5',    'INT',     'core', 'Intentos fallidos antes de bloquear cuenta'),
+('LOGIN_BLOQUEO_MINUTOS',   '15',   'INT',     'core', 'Minutos de bloqueo tras exceder intentos'),
+('SESION_EXPIRACION_HORAS', '8',    'INT',     'core', 'Horas de vigencia de una sesión activa'),
+('TOKEN_RESET_MINUTOS',     '30',   'INT',     'core', 'Minutos de vigencia del token de reset'),
+('HD_SLA_CRITICO_HORAS',    '4',    'INT',     'hd',   'SLA en horas para tickets críticos'),
+('HD_SLA_NORMAL_HORAS',     '24',   'INT',     'hd',   'SLA en horas para tickets normales'),
+('COM_PORCENTAJE_MIN_PAGO', '0.90', 'DECIMAL', 'com',  'Porcentaje mínimo de cumplimiento para pagar'),
+('RH_DIAS_VIGENCIA_VACANTE','90',   'INT',     'rh',   'Días máximos que una vacante puede estar abierta');
+GO
+
+CREATE TABLE hd.sla (
+    ID_SLA          int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    Nombre          varchar(100) NOT NULL,
+    ID_Area         int NULL,
+    Prioridad       varchar(20) NOT NULL,
+    HorasRespuesta  int NOT NULL,
+    HorasResolucion int NOT NULL,
+    Activo          bit NOT NULL CONSTRAINT DF_hd_sla_Activo DEFAULT (1),
+    CONSTRAINT FK_hd_sla_area       FOREIGN KEY (ID_Area) REFERENCES core.area(ID_Area),
+    CONSTRAINT CHK_hd_sla_Prioridad CHECK (Prioridad IN ('CRITICA','ALTA','MEDIA','BAJA')),
+    CONSTRAINT CHK_hd_sla_Horas     CHECK (HorasRespuesta > 0 AND HorasResolucion >= HorasRespuesta)
+);
+GO
+
+ALTER TABLE hd.ticket
+    ADD Prioridad   varchar(20) NOT NULL CONSTRAINT DF_hd_tkt_Prior DEFAULT ('MEDIA'),
+        ID_SLA      int NULL,
+        FechaLimite datetime2(0) NULL,
+        FueraDeSLA  bit NOT NULL CONSTRAINT DF_hd_tkt_FSLA DEFAULT (0);
+GO
+
+ALTER TABLE hd.ticket
+    ADD CONSTRAINT CHK_hd_tkt_Prioridad CHECK (Prioridad IN ('CRITICA','ALTA','MEDIA','BAJA')),
+    CONSTRAINT FK_hd_tkt_sla FOREIGN KEY (ID_SLA) REFERENCES hd.sla(ID_SLA);
+GO
+
+CREATE TABLE core.adjunto (
+    ID_Adjunto     int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    Modulo         varchar(30)  NOT NULL,
+    Entidad        varchar(50)  NOT NULL,
+    ID_Referencia  int NOT NULL,
+    NombreArchivo  varchar(255) NOT NULL,
+    RutaArchivo    varchar(500) NULL,
+    Extension      varchar(10)  NULL,
+    TamanoBytes    bigint NULL,
+    MimeType       varchar(100) NULL,
+    Descripcion    varchar(200) NULL,
+    Activo         bit NOT NULL CONSTRAINT DF_core_adj_Activo DEFAULT (1),
+    FechaCreacion  datetime2(0) NOT NULL CONSTRAINT DF_core_adj_FC DEFAULT (SYSDATETIME()),
+    ID_UsuarioCreo int NULL,
+    CONSTRAINT FK_core_adj_usuario  FOREIGN KEY (ID_UsuarioCreo) REFERENCES core.usuario(ID_Usuario),
+    CONSTRAINT CHK_core_adj_Modulo  CHECK (Modulo IN ('hd','rh','ped','com','core')),
+    CONSTRAINT CHK_core_adj_Tamano  CHECK (TamanoBytes IS NULL OR TamanoBytes >= 0)
+);
+GO
+
+CREATE INDEX IX_core_adj_Referencia ON core.adjunto(Modulo, Entidad, ID_Referencia);
+GO
+
+CREATE TABLE core.dia_no_laboral (
+    ID_DiaNL    int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    Fecha       date NOT NULL,
+    Descripcion varchar(100) NOT NULL,
+    ID_Sucursal int NULL,
+    Tipo        varchar(20) NOT NULL,
+    Activo      bit NOT NULL CONSTRAINT DF_core_dnl_Activo DEFAULT (1),
+    CONSTRAINT FK_core_dnl_sucursal FOREIGN KEY (ID_Sucursal) REFERENCES core.sucursal(ID_Sucursal),
+    CONSTRAINT CHK_core_dnl_Tipo    CHECK (Tipo IN ('FESTIVO','PUENTE','CIERRE','OTRO')),
+    CONSTRAINT UQ_core_dnl          UNIQUE (Fecha, ID_Sucursal)
+);
+GO
+
+CREATE INDEX IX_core_dnl_Fecha ON core.dia_no_laboral(Fecha);
+GO
+
+CREATE TABLE com.acumulado_empleado (
+    ID_Acumulado       int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    Numero_Empleado    int NOT NULL,
+    Anio               int NOT NULL,
+    TotalComisiones    decimal(18,2) NOT NULL DEFAULT (0),
+    TotalDescuentos    decimal(18,2) NOT NULL DEFAULT (0),
+    TotalPagado        decimal(18,2) NOT NULL DEFAULT (0),
+    NumSemanas         int NOT NULL DEFAULT (0),
+    FechaUltimoPago    datetime2(0) NULL,
+    FechaActualizacion datetime2(0) NOT NULL CONSTRAINT DF_com_ace_FA DEFAULT (SYSDATETIME()),
+    CONSTRAINT UQ_com_ace          UNIQUE (Numero_Empleado, Anio),
+    CONSTRAINT FK_com_ace_empleado FOREIGN KEY (Numero_Empleado) REFERENCES core.empleado(Numero_Empleado),
+    CONSTRAINT CHK_com_ace_Anio    CHECK (Anio >= 2000),
+    CONSTRAINT CHK_com_ace_Totales CHECK (TotalComisiones >= 0 AND TotalDescuentos >= 0 AND TotalPagado >= 0)
+);
+GO
+
+CREATE INDEX IX_com_ace_Empleado ON com.acumulado_empleado(Numero_Empleado);
+CREATE INDEX IX_com_ace_Anio     ON com.acumulado_empleado(Anio);
+GO
+
+/* ============================================================
+   DATOS SEMILLA — INDICADORES Y SUB-INDICADORES
+============================================================ */
+
+INSERT INTO com.indicador (Clave, Nombre, Categoria, OrdenResumen) VALUES
+('VOL', 'Volumen de venta',        'VENTAS',      1),
+('COB', 'Cobertura de categoría',  'VENTAS',      2),
+('EFE', 'Efectividad',             'VENTAS',      3),
+('EFI', 'Eficiencia',              'VENTAS',      4),
+('DF1', 'Devolución F1',           'CALIDAD',     5),
+('DAU', 'Devolución autoservicio', 'CALIDAD',     6),
+('NSE', 'NSE nivel de servicio',   'CALIDAD',     7),
+('DOC', 'Documentos y checklist',  'DOCUMENTOS',  8);
+GO
+
+INSERT INTO com.sub_indicador (ID_Indicador, Clave, Nombre, Orden)
+SELECT i.ID_Indicador, v.Clave, v.Nombre, v.Orden
+FROM com.indicador i
+CROSS JOIN (VALUES ('EMB','Embutidos',1),('CF','Carnes frías',2),('QSO','Queso',3),('MTK','Mantequilla',4)) v(Clave,Nombre,Orden)
+WHERE i.Clave = 'VOL';
+GO
+
+INSERT INTO com.sub_indicador (ID_Indicador, Clave, Nombre, Orden)
+SELECT i.ID_Indicador, v.Clave, v.Nombre, v.Orden
+FROM com.indicador i
+CROSS JOIN (VALUES ('BOL','Bolonia',1),('CHOR','Chorizo',2),('JAM','Jamón',3),('LOM','Lomo',4),
+    ('MTK','Mantequilla',5),('QSO','Queso',6),('SAL','Salchicha',7),('TOC','Tocino',8)) v(Clave,Nombre,Orden)
+WHERE i.Clave = 'COB';
+GO
+
+INSERT INTO com.sub_indicador (ID_Indicador, Clave, Nombre, Orden)
+SELECT i.ID_Indicador, v.Clave, v.Nombre, v.Orden
+FROM com.indicador i
+CROSS JOIN (VALUES
+    ('CHK','Check list de unidades',1),('SPH','Smartphone / Impresora / Licencia',2),
+    ('ACO','Formato de acompañamiento supervisor',3),('LIQ','Liquidación perfecta',4),
+    ('MES','Mesa de control',5),('REP','Reporte de liquidación mayor $600',6),
+    ('PRO','Check list promotoría',7),('MER','Mercadeo tiendas',8)) v(Clave,Nombre,Orden)
+WHERE i.Clave = 'DOC';
+GO
+
+/* ============================================================
+   DATOS SEMILLA — REGLAS DE COMISIÓN
+============================================================ */
+
+INSERT INTO com.regla_comision (ID_Indicador,ID_SubIndicador,TCE,Puesto,Canal,PorcentajeMinimo,PorcentajeMaximo,Monto,Factor)
+SELECT ind.ID_Indicador,NULL,r.TCE,r.Puesto,r.Canal,r.PctMin,r.PctMax,r.Monto,r.Factor
+FROM com.indicador ind
+CROSS JOIN (VALUES
+    ('VT','VENDEDOR',  'TRADICIONAL',0.0000,0.8999,   0.00,1.0),
+    ('VT','VENDEDOR',  'TRADICIONAL',0.9000,9.9999,1417.00,1.0),
+    ('XT','SUPERVISOR','TRADICIONAL',0.0000,0.8999,   0.00,1.0),
+    ('XT','SUPERVISOR','TRADICIONAL',0.9000,9.9999,1750.00,1.0),
+    ('XM','SUPERVISOR','MODERNO',    0.0000,0.8999,   0.00,1.0),
+    ('XM','SUPERVISOR','MODERNO',    0.9000,9.9999,1137.50,1.0),
+    ('VM','VENDEDOR',  'MODERNO',    0.0000,0.8999,   0.00,1.0),
+    ('VM','VENDEDOR',  'MODERNO',    0.9000,9.9999,1029.00,1.0)
+) r(TCE,Puesto,Canal,PctMin,PctMax,Monto,Factor)
+WHERE ind.Clave='VOL';
+GO
+
+INSERT INTO com.regla_comision (ID_Indicador,ID_SubIndicador,TCE,Puesto,Canal,PorcentajeMinimo,PorcentajeMaximo,Monto,Factor)
+SELECT ind.ID_Indicador,NULL,r.TCE,r.Puesto,r.Canal,r.PctMin,r.PctMax,r.Monto,NULL
+FROM com.indicador ind
+CROSS JOIN (VALUES
+    ('VT','VENDEDOR',  'TRADICIONAL',0.0000,0.8999, 0.00),('VT','VENDEDOR','TRADICIONAL',0.9000,0.9099,47.81),
+    ('VT','VENDEDOR',  'TRADICIONAL',0.9100,0.9199,48.34),('VT','VENDEDOR','TRADICIONAL',0.9200,0.9299,48.88),
+    ('VT','VENDEDOR',  'TRADICIONAL',0.9300,0.9399,49.41),('VT','VENDEDOR','TRADICIONAL',0.9400,0.9499,49.94),
+    ('VT','VENDEDOR',  'TRADICIONAL',0.9500,0.9599,50.47),('VT','VENDEDOR','TRADICIONAL',0.9600,0.9699,51.00),
+    ('VT','VENDEDOR',  'TRADICIONAL',0.9700,0.9799,51.53),('VT','VENDEDOR','TRADICIONAL',0.9800,0.9899,52.06),
+    ('VT','VENDEDOR',  'TRADICIONAL',0.9900,0.9999,52.59),('VT','VENDEDOR','TRADICIONAL',1.0000,9.9999,53.13),
+    ('VM','VENDEDOR',  'MODERNO',    0.0000,0.8999, 0.00),('VM','VENDEDOR','MODERNO',    0.9000,0.9099,85.50),
+    ('VM','VENDEDOR',  'MODERNO',    0.9100,0.9199,86.45),('VM','VENDEDOR','MODERNO',    0.9200,0.9299,87.40),
+    ('VM','VENDEDOR',  'MODERNO',    0.9300,0.9399,88.35),('VM','VENDEDOR','MODERNO',    0.9400,0.9499,89.30),
+    ('VM','VENDEDOR',  'MODERNO',    0.9500,0.9599,90.25),('VM','VENDEDOR','MODERNO',    0.9600,0.9699,91.20),
+    ('VM','VENDEDOR',  'MODERNO',    0.9700,0.9799,92.15),('VM','VENDEDOR','MODERNO',    0.9800,0.9899,93.10),
+    ('VM','VENDEDOR',  'MODERNO',    0.9900,0.9999,94.05),('VM','VENDEDOR','MODERNO',    1.0000,9.9999,95.00),
+    ('XT','SUPERVISOR','TRADICIONAL',0.0000,0.8999, 0.00),('XT','SUPERVISOR','TRADICIONAL',0.9000,0.9099,67.50),
+    ('XT','SUPERVISOR','TRADICIONAL',0.9100,0.9199,68.25),('XT','SUPERVISOR','TRADICIONAL',0.9200,0.9299,69.00),
+    ('XT','SUPERVISOR','TRADICIONAL',0.9300,0.9399,69.75),('XT','SUPERVISOR','TRADICIONAL',0.9400,0.9499,70.50),
+    ('XT','SUPERVISOR','TRADICIONAL',0.9500,0.9599,71.25),('XT','SUPERVISOR','TRADICIONAL',0.9600,0.9699,72.00),
+    ('XT','SUPERVISOR','TRADICIONAL',0.9700,0.9799,72.75),('XT','SUPERVISOR','TRADICIONAL',0.9800,0.9899,73.50),
+    ('XT','SUPERVISOR','TRADICIONAL',0.9900,0.9999,74.25),('XT','SUPERVISOR','TRADICIONAL',1.0000,9.9999,75.00),
+    ('XM','SUPERVISOR','MODERNO',    0.0000,0.8999, 0.00),('XM','SUPERVISOR','MODERNO',   0.9000,0.9099,51.19),
+    ('XM','SUPERVISOR','MODERNO',    0.9100,0.9199,51.76),('XM','SUPERVISOR','MODERNO',   0.9200,0.9299,52.32),
+    ('XM','SUPERVISOR','MODERNO',    0.9300,0.9399,52.89),('XM','SUPERVISOR','MODERNO',   0.9400,0.9499,53.46),
+    ('XM','SUPERVISOR','MODERNO',    0.9500,0.9599,54.03),('XM','SUPERVISOR','MODERNO',   0.9600,0.9699,54.60),
+    ('XM','SUPERVISOR','MODERNO',    0.9700,0.9799,55.17),('XM','SUPERVISOR','MODERNO',   0.9800,0.9899,55.74),
+    ('XM','SUPERVISOR','MODERNO',    0.9900,0.9999,56.31),('XM','SUPERVISOR','MODERNO',   1.0000,9.9999,56.88)
+) r(TCE,Puesto,Canal,PctMin,PctMax,Monto)
+WHERE ind.Clave='EFE';
+GO
+
+INSERT INTO com.regla_comision (ID_Indicador,ID_SubIndicador,TCE,Puesto,Canal,PorcentajeMinimo,PorcentajeMaximo,Monto,Factor)
+SELECT ind.ID_Indicador,NULL,r.TCE,r.Puesto,r.Canal,r.PctMin,r.PctMax,r.Monto,NULL
+FROM com.indicador ind
+CROSS JOIN (VALUES
+    ('VT','VENDEDOR',  'TRADICIONAL',0.0000,0.8999, 0.00),('VT','VENDEDOR','TRADICIONAL',0.9000,0.9099,47.81),
+    ('VT','VENDEDOR',  'TRADICIONAL',0.9100,0.9199,48.34),('VT','VENDEDOR','TRADICIONAL',0.9200,0.9299,48.88),
+    ('VT','VENDEDOR',  'TRADICIONAL',0.9300,0.9399,49.41),('VT','VENDEDOR','TRADICIONAL',0.9400,0.9499,49.94),
+    ('VT','VENDEDOR',  'TRADICIONAL',0.9500,0.9599,50.47),('VT','VENDEDOR','TRADICIONAL',0.9600,0.9699,51.00),
+    ('VT','VENDEDOR',  'TRADICIONAL',0.9700,0.9799,51.53),('VT','VENDEDOR','TRADICIONAL',0.9800,0.9899,52.06),
+    ('VT','VENDEDOR',  'TRADICIONAL',0.9900,0.9999,52.59),('VT','VENDEDOR','TRADICIONAL',1.0000,9.9999,53.13),
+    ('VM','VENDEDOR',  'MODERNO',    0.0000,0.8999, 0.00),('VM','VENDEDOR','MODERNO',    0.9000,0.9099,85.50),
+    ('VM','VENDEDOR',  'MODERNO',    0.9100,0.9199,86.45),('VM','VENDEDOR','MODERNO',    0.9200,0.9299,87.40),
+    ('VM','VENDEDOR',  'MODERNO',    0.9300,0.9399,88.35),('VM','VENDEDOR','MODERNO',    0.9400,0.9499,89.30),
+    ('VM','VENDEDOR',  'MODERNO',    0.9500,0.9599,90.25),('VM','VENDEDOR','MODERNO',    0.9600,0.9699,91.20),
+    ('VM','VENDEDOR',  'MODERNO',    0.9700,0.9799,92.15),('VM','VENDEDOR','MODERNO',    0.9800,0.9899,93.10),
+    ('VM','VENDEDOR',  'MODERNO',    0.9900,0.9999,94.05),('VM','VENDEDOR','MODERNO',    1.0000,9.9999,95.00),
+    ('XT','SUPERVISOR','TRADICIONAL',0.0000,0.8999, 0.00),('XT','SUPERVISOR','TRADICIONAL',0.9000,0.9099,67.50),
+    ('XT','SUPERVISOR','TRADICIONAL',0.9100,0.9199,68.25),('XT','SUPERVISOR','TRADICIONAL',0.9200,0.9299,69.00),
+    ('XT','SUPERVISOR','TRADICIONAL',0.9300,0.9399,69.75),('XT','SUPERVISOR','TRADICIONAL',0.9400,0.9499,70.50),
+    ('XT','SUPERVISOR','TRADICIONAL',0.9500,0.9599,71.25),('XT','SUPERVISOR','TRADICIONAL',0.9600,0.9699,72.00),
+    ('XT','SUPERVISOR','TRADICIONAL',0.9700,0.9799,72.75),('XT','SUPERVISOR','TRADICIONAL',0.9800,0.9899,73.50),
+    ('XT','SUPERVISOR','TRADICIONAL',0.9900,0.9999,74.25),('XT','SUPERVISOR','TRADICIONAL',1.0000,9.9999,75.00),
+    ('XM','SUPERVISOR','MODERNO',    0.0000,0.8999, 0.00),('XM','SUPERVISOR','MODERNO',   0.9000,0.9099,51.19),
+    ('XM','SUPERVISOR','MODERNO',    0.9100,0.9199,51.76),('XM','SUPERVISOR','MODERNO',   0.9200,0.9299,52.32),
+    ('XM','SUPERVISOR','MODERNO',    0.9300,0.9399,52.89),('XM','SUPERVISOR','MODERNO',   0.9400,0.9499,53.46),
+    ('XM','SUPERVISOR','MODERNO',    0.9500,0.9599,54.03),('XM','SUPERVISOR','MODERNO',   0.9600,0.9699,54.60),
+    ('XM','SUPERVISOR','MODERNO',    0.9700,0.9799,55.17),('XM','SUPERVISOR','MODERNO',   0.9800,0.9899,55.74),
+    ('XM','SUPERVISOR','MODERNO',    0.9900,0.9999,56.31),('XM','SUPERVISOR','MODERNO',   1.0000,9.9999,56.88)
+) r(TCE,Puesto,Canal,PctMin,PctMax,Monto)
+WHERE ind.Clave='EFI';
+GO
+
+INSERT INTO com.regla_comision (ID_Indicador,ID_SubIndicador,TCE,Puesto,Canal,PorcentajeMinimo,PorcentajeMaximo,Monto,Factor)
+SELECT ind.ID_Indicador,NULL,r.TCE,r.Puesto,r.Canal,r.PctMin,r.PctMax,r.Monto,r.Factor
+FROM com.indicador ind
+CROSS JOIN (VALUES
+    ('VT','VENDEDOR',  'TRADICIONAL',0.0000,9.9999, 88.54,0.000600),
+    ('XT','SUPERVISOR','TRADICIONAL',0.0000,9.9999,125.00,0.000600)
+) r(TCE,Puesto,Canal,PctMin,PctMax,Monto,Factor)
+WHERE ind.Clave='DF1';
+GO
+
+INSERT INTO com.regla_comision (ID_Indicador,ID_SubIndicador,TCE,Puesto,Canal,PorcentajeMinimo,PorcentajeMaximo,Monto,Factor)
+SELECT ind.ID_Indicador,NULL,r.TCE,r.Puesto,r.Canal,r.PctMin,r.PctMax,r.Monto,r.Factor
+FROM com.indicador ind
+CROSS JOIN (VALUES
+    ('VM','VENDEDOR',  'MODERNO',0.0000,9.9999, 79.17,0.011000),
+    ('XM','SUPERVISOR','MODERNO',0.0000,9.9999,379.17,0.011000)
+) r(TCE,Puesto,Canal,PctMin,PctMax,Monto,Factor)
+WHERE ind.Clave='DAU';
+GO
+
+INSERT INTO com.regla_comision (ID_Indicador,ID_SubIndicador,TCE,Puesto,Canal,PorcentajeMinimo,PorcentajeMaximo,Monto,Factor)
+SELECT ind.ID_Indicador,NULL,NULL,NULL,NULL,r.PctMin,r.PctMax,r.Monto,NULL
+FROM com.indicador ind
+CROSS JOIN (VALUES (0.0000,0.8999,0.00),(0.9000,0.9499,56.88),(0.9500,9.9999,85.31)) r(PctMin,PctMax,Monto)
+WHERE ind.Clave='NSE';
+GO
+
+INSERT INTO com.regla_comision (ID_Indicador,ID_SubIndicador,TCE,Puesto,Canal,PorcentajeMinimo,PorcentajeMaximo,Monto,Factor)
+SELECT si.ID_Indicador,si.ID_SubIndicador,r.TCE,r.Puesto,r.Canal,0.0000,9.9999,r.Monto,NULL
+FROM com.sub_indicador si
+INNER JOIN com.indicador ind ON si.ID_Indicador = ind.ID_Indicador
+CROSS JOIN (VALUES
+    ('CHK','XT','SUPERVISOR','TRADICIONAL', 75.000),('CHK','XM','SUPERVISOR','MODERNO',   68.250),
+    ('CHK','VT','VENDEDOR',  'TRADICIONAL', 31.875),('CHK','VM','VENDEDOR',  'MODERNO',   57.000),
+    ('SPH','XT','SUPERVISOR','TRADICIONAL', 30.000),('SPH','XM','SUPERVISOR','MODERNO',   22.750),
+    ('SPH','VT','VENDEDOR',  'TRADICIONAL', 10.625),('SPH','VM','VENDEDOR',  'MODERNO',   28.500),
+    ('ACO','XT','SUPERVISOR','TRADICIONAL', 30.000),('ACO','XM','SUPERVISOR','MODERNO',    0.000),
+    ('ACO','VT','VENDEDOR',  'TRADICIONAL',  0.000),('ACO','VM','VENDEDOR',  'MODERNO',    0.000),
+    ('LIQ','XT','SUPERVISOR','TRADICIONAL', 30.000),('LIQ','XM','SUPERVISOR','MODERNO',   11.375),
+    ('LIQ','VT','VENDEDOR',  'TRADICIONAL', 15.938),('LIQ','VM','VENDEDOR',  'MODERNO',    9.500),
+    ('MES','XT','SUPERVISOR','TRADICIONAL',105.000),('MES','XM','SUPERVISOR','MODERNO',   79.625),
+    ('MES','VT','VENDEDOR',  'TRADICIONAL', 37.188),('MES','VM','VENDEDOR',  'MODERNO',   66.500),
+    ('REP','XT','SUPERVISOR','TRADICIONAL', 30.000),('REP','XM','SUPERVISOR','MODERNO',    0.000),
+    ('REP','VT','VENDEDOR',  'TRADICIONAL', 10.625),('REP','VM','VENDEDOR',  'MODERNO',    0.000),
+    ('PRO','XT','SUPERVISOR','TRADICIONAL',  0.000),('PRO','XM','SUPERVISOR','MODERNO',   22.750),
+    ('PRO','VT','VENDEDOR',  'TRADICIONAL',  0.000),('PRO','VM','VENDEDOR',  'MODERNO',    0.000),
+    ('MER','XT','SUPERVISOR','TRADICIONAL',  0.000),('MER','XM','SUPERVISOR','MODERNO',   22.750),
+    ('MER','VT','VENDEDOR',  'TRADICIONAL',  0.000),('MER','VM','VENDEDOR',  'MODERNO',   28.500)
+) r(Clave_SI,TCE,Puesto,Canal,Monto)
+WHERE ind.Clave='DOC' AND si.Clave=r.Clave_SI;
+GO
+
+/* ============================================================
+   FIN DEL SCRIPT V3
+============================================================ */

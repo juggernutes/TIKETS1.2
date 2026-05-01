@@ -1,0 +1,33 @@
+USE PortalV2;
+GO
+
+/* ============================================================
+   com.meta_mes_portada
+   2026 enero a diciembre
+   Considerando lunes a sabado como dias habiles
+============================================================ */
+
+INSERT INTO com.meta_mes_portada
+    (Anio, Mes, Nombre, DiasHabiles, ID_UsuarioCreo, ID_UsuarioModifico)
+SELECT v.Anio, v.Mes, v.Nombre, v.DiasHabiles, v.ID_UsuarioCreo, v.ID_UsuarioModifico
+FROM (VALUES
+    (2026, 1,  'ENERO',      27, NULL, NULL),
+    (2026, 2,  'FEBRERO',    24, NULL, NULL),
+    (2026, 3,  'MARZO',      27, NULL, NULL),
+    (2026, 4,  'ABRIL',      26, NULL, NULL),
+    (2026, 5,  'MAYO',       26, NULL, NULL),
+    (2026, 6,  'JUNIO',      26, NULL, NULL),
+    (2026, 7,  'JULIO',      27, NULL, NULL),
+    (2026, 8,  'AGOSTO',     26, NULL, NULL),
+    (2026, 9,  'SEPTIEMBRE', 26, NULL, NULL),
+    (2026, 10, 'OCTUBRE',    27, NULL, NULL),
+    (2026, 11, 'NOVIEMBRE',  25, NULL, NULL),
+    (2026, 12, 'DICIEMBRE',  27, NULL, NULL)
+) AS v(Anio, Mes, Nombre, DiasHabiles, ID_UsuarioCreo, ID_UsuarioModifico)
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM com.meta_mes_portada m
+    WHERE m.Anio = v.Anio
+      AND m.Mes = v.Mes
+);
+GO

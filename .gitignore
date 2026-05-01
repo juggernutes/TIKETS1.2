@@ -1,0 +1,54 @@
+# Dependencies
+backend/vendor/
+frontend/node_modules/
+node_modules/
+
+# Environment and local credentials
+.env
+.env.*
+backend/.env
+backend/.env.*
+!backend/.env.example
+frontend/.env
+frontend/.env.*
+auth.json
+
+# Runtime, caches and logs
+__pycache__/
+*.log
+backend/storage/logs/
+backend/storage/framework/cache/
+backend/storage/framework/sessions/
+backend/storage/framework/views/
+backend/storage/*.key
+backend/bootstrap/cache/*.php
+backend/.phpunit.result.cache
+
+# Frontend builds
+frontend/dist/
+frontend/dist-ssr/
+backend/public/assets/
+backend/public/build/
+backend/public/hot
+backend/public/storage/
+backend/public/spa.html
+
+# Backups, database dumps and generated exports
+*.bak
+db_tiket_ti.sql
+backend/db_tiket_ti.sql
+compare_export/
+*.ipynb
+
+# Local/legacy working copies
+tikets_base/
+
+# Sensitive continuity notes
+CONTINUIDAD_PORTAL_V2.md
+backend/CONTINUIDAD_PORTAL_V2.md
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

@@ -1,8 +1,20 @@
 <template>
   <div>
     <PageHeader titulo="Pedidos" subtitulo="Área de Ventas" icon="pi-box">
-      <Button label="Nuevo pedido" icon="pi pi-plus" @click="dlgNuevo = true" />
+      <Button v-if="auth.puede('ped.pedidos.crear')" label="Nuevo pedido" icon="pi pi-plus" @click="dlgNuevo = true" />
     </PageHeader>
+
+    <div v-if="bandejas.length > 1" class="bandejas-row">
+      <Button
+        v-for="item in bandejas"
+        :key="item.key"
+        :label="item.label"
+        :icon="item.icon"
+        :outlined="bandeja !== item.key"
+        size="small"
+        @click="cambiarBandeja(item.key)"
+      />
+    </div>
 
     <!-- Filtros -->
     <Card class="mb-3">
@@ -63,8 +75,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useToast } from 'primevue/usetoast'
+import { useAuthStore } from '../../stores/auth'
 import { useCatalogosStore } from '../../stores/catalogos'
 import { pedApi } from '../../api/ped'
 import { formatFecha } from '../../utils/formato'
@@ -80,6 +93,7 @@ import Column     from 'primevue/column'
 import Dialog     from 'primevue/dialog'
 
 const toast = useToast()
+const auth  = useAuthStore()
 const cats  = useCatalogosStore()
 
 const rows     = ref([])
@@ -88,8 +102,15 @@ const cargando = ref(false)
 const pagina   = ref(1)
 const perPage  = 15
 const dlgNuevo = ref(false)
+const bandeja  = ref('todos')
 
 const filtros = ref({ id_estado: null, ID_Semana: null, folio: '' })
+
+const bandejas = computed(() => [
+  auth.puede('ped.pedidos.ver') && { key: 'todos', label: 'Todos', icon: 'pi pi-list' },
+  auth.puede('ped.pedidos.ver_por_autorizar') && { key: 'autorizar', label: 'Por autorizar', icon: 'pi pi-check-circle' },
+  auth.puede('ped.pedidos.ver_por_surtir') && { key: 'surtir', label: 'Por surtir', icon: 'pi pi-box' },
+].filter(Boolean))
 
 const estadoOpciones = [
   { Nombre: 'Pendiente',   val: 'PENDIENTE' },
@@ -106,7 +127,7 @@ async function cargar() {
     if (filtros.value.id_estado) params.id_estado  = filtros.value.id_estado
     if (filtros.value.ID_Semana) params.ID_Semana  = filtros.value.ID_Semana
     if (filtros.value.folio)     params.folio      = filtros.value.folio
-    const res = await pedApi.listarPedidos(params)
+    const res = await cargarBandeja(params)
     rows.value  = res.data.data ?? res.data
     total.value = res.data.total ?? rows.value.length
   } catch {
@@ -116,16 +137,33 @@ async function cargar() {
   }
 }
 
+function cargarBandeja(params) {
+  if (bandeja.value === 'autorizar') return pedApi.porAutorizar(params)
+  if (bandeja.value === 'surtir') return pedApi.porSurtir(params)
+  return pedApi.listarPedidos(params)
+}
+
+function cambiarBandeja(key) {
+  bandeja.value = key
+  buscar()
+}
+
 function buscar() { pagina.value = 1; cargar() }
 function limpiar() { filtros.value = { id_estado: null, ID_Semana: null, folio: '' }; buscar() }
 function onPage(e) { pagina.value = e.page + 1; cargar() }
 function onGuardado() { dlgNuevo.value = false; cargar() }
 
-onMounted(cargar)
+onMounted(() => {
+  if (!bandejas.value.some(item => item.key === bandeja.value)) {
+    bandeja.value = bandejas.value[0]?.key ?? 'todos'
+  }
+  cargar()
+})
 </script>
 
 <style scoped>
 .mb-3       { margin-bottom:1rem; }
+.bandejas-row { display:flex; flex-wrap:wrap; gap:0.5rem; margin-bottom:1rem; }
 .filtros-row{ display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center; }
 .filtro     { min-width:160px; }
 </style>

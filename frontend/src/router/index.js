@@ -39,8 +39,8 @@ const routes = [
       { path: 'rh/candidatos/:id', name: 'rh-cand-det',    component: () => import('../pages/rh/CandidatoDetalle.vue') },
 
       // ── Pedidos ────────────────────────────────────────────────────
-      { path: 'ped/pedidos',     name: 'ped-pedidos',    component: () => import('../pages/ped/PedidosPage.vue') },
-      { path: 'ped/pedidos/:id', name: 'ped-pedido-det', component: () => import('../pages/ped/PedidoDetalle.vue') },
+      { path: 'ped/pedidos',     name: 'ped-pedidos',    component: () => import('../pages/ped/PedidosPage.vue'), meta: { permiso: 'ped.pedidos.ver' } },
+      { path: 'ped/pedidos/:id', name: 'ped-pedido-det', component: () => import('../pages/ped/PedidoDetalle.vue'), meta: { permiso: 'ped.pedidos.ver' } },
 
       // ── Comisiones ─────────────────────────────────────────────────
       { path: 'com/corridas',       name: 'com-corridas',    component: () => import('../pages/com/CorridasPage.vue') },
@@ -80,6 +80,10 @@ router.beforeEach(async (to) => {
   if (!auth.usuario) {
     try { await auth.cargarUsuario() }
     catch { return { name: 'login' } }
+  }
+
+  if (to.meta.permiso && !auth.puede(to.meta.permiso)) {
+    return '/'
   }
 
   return true

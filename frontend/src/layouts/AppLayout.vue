@@ -50,7 +50,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useCatalogosStore } from '../stores/catalogos'
@@ -70,7 +70,7 @@ cats.cargar()
 
 const sidebarColapsado = ref(false)
 
-const menuItems = [
+const allMenuItems = [
   {
     label: 'Help Desk',
     icon:  'pi pi-ticket',
@@ -92,8 +92,9 @@ const menuItems = [
   {
     label: 'Pedidos',
     icon:  'pi pi-box',
+    permiso: 'ped.pedidos.ver',
     items: [
-      { label: 'Pedidos', icon: 'pi pi-list', command: () => router.push('/ped/pedidos') },
+      { label: 'Pedidos', icon: 'pi pi-list', permiso: 'ped.pedidos.ver', command: () => router.push('/ped/pedidos') },
     ],
   },
   {
@@ -112,6 +113,22 @@ const menuItems = [
     ],
   },
 ]
+
+const menuItems = computed(() => filtrarMenu(allMenuItems))
+
+function filtrarMenu(items) {
+  return items
+    .filter(item => !item.permiso || auth.puede(item.permiso))
+    .map(item => {
+      const filtrado = { ...item }
+      if (item.items) {
+        filtrado.items = filtrarMenu(item.items)
+      }
+      delete filtrado.permiso
+      return filtrado
+    })
+    .filter(item => !item.items || item.items.length > 0)
+}
 
 async function cerrarSesion() {
   await auth.logout()

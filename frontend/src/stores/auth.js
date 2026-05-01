@@ -10,6 +10,12 @@ export const useAuthStore = defineStore('auth', () => {
   const estaAutenticado   = computed(() => !!token.value)
   const nombre            = computed(() => usuario.value?.nombre ?? usuario.value?.Nombre ?? '')
   const rol               = computed(() => usuario.value?.rol ?? usuario.value?.rol?.Nombre ?? '')
+  const permisos          = computed(() => usuario.value?.permisos ?? [])
+
+  function puede(permiso) {
+    if (!permiso) return true
+    return permisos.value.includes(permiso)
+  }
 
   async function login(cuenta, password) {
     const { data } = await authApi.login({ cuenta, password })
@@ -43,7 +49,8 @@ export const useAuthStore = defineStore('auth', () => {
 
   return {
     usuario, token, debeCambiarPassword,
-    estaAutenticado, nombre, rol,
+    estaAutenticado, nombre, rol, permisos,
+    puede,
     login, cargarUsuario, actualizarPassword, logout,
   }
 })

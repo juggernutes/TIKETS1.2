@@ -709,3 +709,26 @@ Recomendacion:
 - Usar core.rol_permiso para definir que puede hacer cada rol y mantener el alcance de datos en Pedidos por unidad/sucursal.
 - Implementar permisos como ped.pedidos.crear, ped.pedidos.autorizar, ped.pedidos.surtir, ped.pedidos.cancelar, ped.pedidos.csv, entre otros.
 - Primero terminar el mapeo de usuarios V2; despues cargar permisos y aplicar filtros en backend/frontend.
+
+Fecha: 2026-05-01 - Frontend permisos Pedidos V2
+
+Se avanzo la aplicacion de permisos en el frontend del modulo Pedidos.
+
+Cambios realizados:
+
+- El store de autenticacion ahora expone permisos y helper auth.puede(clave).
+- pedApi ahora incluye endpoints de Pedidos V2 faltantes: mi-unidad, por autorizar, por surtir, autorizar, surtir y cancelar.
+- Las rutas frontend de Pedidos ahora declaran permiso ped.pedidos.ver.
+- El guard del router bloquea rutas con meta.permiso cuando el usuario no tiene la clave.
+- El menu lateral oculta la opcion Pedidos cuando el usuario no tiene ped.pedidos.ver.
+- La pagina Pedidos oculta Nuevo pedido sin ped.pedidos.crear.
+- La pagina Pedidos muestra bandejas Todos, Por autorizar y Por surtir segun permisos.
+
+Validacion:
+
+- npm.cmd run build termino correctamente.
+
+Pendiente:
+
+- Ejecutar pedidos_v2_permisos_base.sql en la base destino si aun no se ha aplicado.
+- Completar mapeo/creacion de usuarios V2 para unidades operacionales antes de prueba funcional completa.

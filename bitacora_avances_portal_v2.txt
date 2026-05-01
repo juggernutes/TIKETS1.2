@@ -732,3 +732,17 @@ Pendiente:
 
 - Ejecutar pedidos_v2_permisos_base.sql en la base destino si aun no se ha aplicado.
 - Completar mapeo/creacion de usuarios V2 para unidades operacionales antes de prueba funcional completa.
+
+Fecha: 2026-05-01 - Publicacion GitHub permisos Pedidos
+
+Se confirmo y publico el avance de permisos frontend para Pedidos V2 en el repositorio GitHub:
+
+- Repositorio: https://github.com/juggernutes/TIKETS1.2.git
+- Rama: main
+- Commit: 6b8aa7e Apply frontend permissions for pedidos
+
+Estado:
+
+- El repositorio local quedo limpio y sincronizado con origin/main.
+- El build frontend fue validado con npm.cmd run build.
+- El siguiente paso operativo sigue siendo aplicar permisos base en SQL Server si no se han cargado y continuar el mapeo de usuarios/unidades.

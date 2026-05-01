@@ -863,3 +863,50 @@ Estado:
 
 - PortalV2 local conserva el historico/importacion de comisiones y ahora tambien contiene usuarios, unidades operacionales, catalogos, pedidos y tickets del BAK productivo.
 - No se reemplazo la base completa; se hizo union incremental sin borrar datos locales.
+
+Fecha: 2026-05-01 - Validacion local y ajuste de formulario Pedidos
+
+Se valido el proyecto corriendo localmente:
+
+- Backend activo en http://127.0.0.1:8000/api/health con respuesta status ok.
+- Login API con admin / 12345 correcto.
+- El usuario admin recibe 11 permisos de Pedidos:
+  - ped.catalogos.ver
+  - ped.pedidos.autorizar
+  - ped.pedidos.cancelar
+  - ped.pedidos.crear
+  - ped.pedidos.csv
+  - ped.pedidos.surtir
+  - ped.pedidos.ver
+  - ped.pedidos.ver_por_autorizar
+  - ped.pedidos.ver_por_surtir
+  - ped.pedidos.ver_propios
+  - ped.unidades.admin
+- API Pedidos validada:
+  - /api/ped/pedidos devuelve 2 pedidos.
+  - /api/ped/pedidos/por-autorizar devuelve 0.
+  - /api/ped/pedidos/por-surtir devuelve 0.
+  - /api/ped/estados devuelve PENDIENTE, AUTORIZADO, SURTIDO y CANCELADO.
+  - /api/ped/unidades devuelve 118 unidades.
+
+Se detecto y corrigio un detalle funcional en:
+
+- frontend/src/components/ped/PedidoForm.vue
+
+Problema:
+
+- El formulario filtraba unidades por igualdad exacta:
+  - TipoNombre = VENDEDOR
+  - TipoNombre = SUPERVISOR
+  - TipoNombre = ALMACEN
+- El BAK productivo trae nombres mas especificos como VENDEDOR MODERNO, VENDEDOR TRADICIONAL, SUPERVISOR MODERNO y SUPERVISOR TRADICIONAL.
+- Con el filtro exacto, los selectores de unidad y supervisor podian aparecer vacios aunque los datos ya estuvieran combinados.
+
+Correccion:
+
+- Se agrego una normalizacion de TipoNombre y busqueda parcial por tipo.
+- Ahora el formulario acepta variantes productivas de VENDEDOR, SUPERVISOR y ALMACEN.
+
+Validacion:
+
+- npm.cmd run build finalizo correctamente en frontend.

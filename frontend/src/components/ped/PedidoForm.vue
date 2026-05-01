@@ -119,6 +119,14 @@ function agregarFila() {
   detalles.push({ IdArticulo: null, CanPzPed: 1, VolPed: 0 })
 }
 
+function tipoUnidadContiene(unidad, tipo) {
+  return String(unidad?.TipoNombre ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .includes(tipo)
+}
+
 async function cargarCatalogos() {
   cargandoCats.value = true
   cargandoArts.value = true
@@ -128,9 +136,9 @@ async function cargarCatalogos() {
       client.get('/catalogos/articulos'),
     ])
     const unidades = resUnidades.data?.data ?? resUnidades.data ?? []
-    vendedores.value   = unidades.filter(u => u.TipoNombre === 'VENDEDOR')
-    supervisores.value = unidades.filter(u => u.TipoNombre === 'SUPERVISOR')
-    almacenes.value    = unidades.filter(u => u.TipoNombre === 'ALMACEN')
+    vendedores.value   = unidades.filter(u => tipoUnidadContiene(u, 'VENDEDOR'))
+    supervisores.value = unidades.filter(u => tipoUnidadContiene(u, 'SUPERVISOR'))
+    almacenes.value    = unidades.filter(u => tipoUnidadContiene(u, 'ALMACEN'))
     articulos.value    = resArts.data?.data ?? resArts.data ?? []
   } catch {
     // silencioso — se mostrará vacío

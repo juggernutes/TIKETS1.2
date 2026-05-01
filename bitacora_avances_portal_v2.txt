@@ -789,3 +789,77 @@ Interpretacion:
 - El BAK productivo contiene usuarios/unidades operacionales reales de Pedidos que faltan en local.
 - La base local contiene historico/importacion de comisiones que no viene en este BAK.
 - No conviene reemplazar una base por la otra; el siguiente paso debe ser preparar una carga incremental controlada desde PortalV2_prod_compare hacia PortalV2, empezando por roles/permisos, usuarios, login y unidades operacionales.
+
+Fecha: 2026-05-01 - Union incremental BAK productivo en PortalV2 local
+
+Se combino informacion del BAK productivo restaurado como PortalV2_prod_compare hacia la base local PortalV2.
+
+Respaldo previo:
+
+- Se genero respaldo antes de modificar datos:
+  C:\Program Files\Microsoft SQL Server\MSSQL16.MSSQLSERVER\MSSQL\Backup\PortalV2_pre_merge_20260501.bak
+
+Preparacion:
+
+- Se aplico el script idempotente backend\database\sql\2026_04_29_extend_hd_core_support_tables.sql para crear tablas HD faltantes:
+  - hd.ticket_estatus_log
+  - hd.ticket_agente_log
+
+Script generado:
+
+- backend\database\sql\2026_05_01_merge_productivo_incremental.sql
+
+Datos combinados correctamente:
+
+- core.rol: +3
+- core.permiso: +11
+- core.usuario: +115
+- core.login: +4
+- core.rol_permiso: +30
+- cat.grupo_articulo: +3
+- cat.articulo: +58
+- cat.sistema: +4
+- com.regla_comision: +286
+- com.regla_comision_historial: +286
+- core.dia_no_laboral: +17
+- core.notificacion: +17
+- hd.solucion: +12
+- hd.error: +40
+- ped.capacidaduv: +7
+- ped.unidadoperacional: +114
+- core.adjunto: +5
+- core.folio_area_diario: +2
+- core.proveedor: +2
+- ped.pedidos: +2
+- ped.pedido_detalle: +2
+- ped.pedido_estado_log: +6
+- hd.ticket: +4
+- hd.ticket_estatus_log: +16
+- hd.ticket_agente_log: +4
+- hd.ticket_asignacion_area: +4
+- hd.encuesta_ticket: +1
+
+Conteos finales clave:
+
+- core.usuario: 119
+- ped.unidadoperacional: 118
+- cat.articulo: 64
+- cat.sistema: 17
+- ped.pedidos: 2
+- hd.ticket: 4
+- com.resultado_indicador: 12,220
+
+Tablas no combinadas por choque de clave natural:
+
+- com.meta_mes_portada y com.semana: local y productivo tienen meses/semanas equivalentes con IDs distintos.
+- rh.fuente_reclutamiento y rh.estatus_candidato: existen valores equivalentes con IDs distintos.
+
+Validacion:
+
+- El script incremental se reejecuto y ya no reporto faltantes en las tablas incluidas.
+- DBCC CHECKCONSTRAINTS WITH ALL_CONSTRAINTS termino sin reportar violaciones.
+
+Estado:
+
+- PortalV2 local conserva el historico/importacion de comisiones y ahora tambien contiene usuarios, unidades operacionales, catalogos, pedidos y tickets del BAK productivo.
+- No se reemplazo la base completa; se hizo union incremental sin borrar datos locales.

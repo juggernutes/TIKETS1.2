@@ -910,3 +910,43 @@ Correccion:
 Validacion:
 
 - npm.cmd run build finalizo correctamente en frontend.
+
+Fecha: 2026-05-01 - Pruebas locales por rol Pedidos
+
+Se prepararon cuentas locales de prueba del BAK productivo para validar el flujo por rol:
+
+- uv103: VENDEDOR
+- sm107: SUPERVISOR
+- apt101: ALMACEN
+- gtetij: GERENTE
+
+Notas:
+
+- Las cuentas importadas conservaban hashes del respaldo y no entraban con la clave local usada por admin.
+- Se uso el endpoint existente de reset de contrasena desde admin para dejar contrasena temporal local y DebeCambiarPassword activo.
+- No se registra la contrasena temporal en esta bitacora para no subir secretos al repositorio.
+
+Validacion:
+
+- Login API correcto para las cuatro cuentas.
+- Permisos por rol correctos:
+  - VENDEDOR: crear, ver y ver propios.
+  - SUPERVISOR: ver, autorizar, cancelar y bandeja por autorizar.
+  - ALMACEN: ver, surtir, csv y bandeja por surtir.
+  - GERENTE: ver, autorizar, cancelar y bandeja por autorizar.
+- Los pedidos importados estan ligados correctamente a:
+  - Unidad: UV103 TIJUANA
+  - Supervisor: SM107 TIJUANA
+  - Almacen: APT101 TIJUANA
+
+Ajuste frontend:
+
+- Se corrigio el consumo de la relacion de unidad en:
+  - frontend/src/pages/ped/PedidosPage.vue
+  - frontend/src/pages/ped/PedidoDetalle.vue
+- Laravel serializa la relacion unidadPedido como unidad_pedido en JSON.
+- El frontend ahora acepta unidadPedido y unidad_pedido para mostrar el nombre de la unidad en listado y detalle.
+
+Validacion:
+
+- npm.cmd run build finalizo correctamente en frontend.

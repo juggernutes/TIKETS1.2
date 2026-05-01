@@ -41,7 +41,7 @@
           rowHover stripedRows>
           <Column field="FolioPedido" header="Folio" style="width:130px" />
           <Column header="Unidad">
-            <template #body="{ data }">{{ data.unidadPedido?.Nombre ?? data.IdUnidadPedido }}</template>
+            <template #body="{ data }">{{ unidadPedido(data)?.Nombre ?? data.IdUnidadPedido }}</template>
           </Column>
           <Column header="Semana">
             <template #body="{ data }">{{ data.semana ? `Sem ${data.semana.Semana}/${data.semana.Anio}` : '—' }}</template>
@@ -141,6 +141,10 @@ function cargarBandeja(params) {
   if (bandeja.value === 'autorizar') return pedApi.porAutorizar(params)
   if (bandeja.value === 'surtir') return pedApi.porSurtir(params)
   return pedApi.listarPedidos(params)
+}
+
+function unidadPedido(pedido) {
+  return pedido?.unidadPedido ?? pedido?.unidad_pedido ?? null
 }
 
 function cambiarBandeja(key) {

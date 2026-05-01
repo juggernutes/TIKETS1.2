@@ -12,7 +12,7 @@
           <template #content>
             <div class="info-grid">
               <span class="lbl">Unidad</span>
-              <span>{{ pedido.unidadPedido?.Nombre ?? pedido.IdUnidadPedido }}</span>
+              <span>{{ unidadPedido?.Nombre ?? pedido.IdUnidadPedido }}</span>
               <span class="lbl">Supervisor</span>
               <span>{{ pedido.supervisor?.Nombre ?? '-' }}</span>
               <span class="lbl">Almacén</span>
@@ -147,6 +147,7 @@ const puedeAutorizar = computed(() => auth.puede('ped.pedidos.autorizar') && ['C
 const puedeSurtir = computed(() => auth.puede('ped.pedidos.surtir') && estadoNormalizado.value === 'AUTORIZADO')
 const puedeCancelar = computed(() => auth.puede('ped.pedidos.cancelar') && !['CANCELADO', 'SURTIDO'].includes(estadoNormalizado.value))
 const totalEtapa = computed(() => lineas.value.reduce((sum, l) => sum + volumenEtapa(l), 0))
+const unidadPedido = computed(() => pedido.value?.unidadPedido ?? pedido.value?.unidad_pedido ?? null)
 
 function pesoUnitario(linea) {
   return Number(linea.articulo?.Peso ?? 0)

@@ -746,3 +746,46 @@ Estado:
 - El repositorio local quedo limpio y sincronizado con origin/main.
 - El build frontend fue validado con npm.cmd run build.
 - El siguiente paso operativo sigue siendo aplicar permisos base en SQL Server si no se han cargado y continuar el mapeo de usuarios/unidades.
+
+Fecha: 2026-05-01 - Comparacion BAK productivo contra base local
+
+Se recibio el respaldo productivo:
+
+- Archivo original: C:\Users\elfeo\OneDrive\Documentos\portal_v2\PortalV2.bak
+- Copia para SQL Server: C:\Program Files\Microsoft SQL Server\MSSQL16.MSSQLSERVER\MSSQL\Backup\PortalV2_productivo_20260501.bak
+- Base temporal restaurada: PortalV2_prod_compare
+
+Validacion:
+
+- El respaldo se restauro con nombre temporal sin tocar la base local PortalV2.
+- Se comparo PortalV2 contra PortalV2_prod_compare por conteo y por llaves primarias.
+
+Faltantes principales en PortalV2 local respecto al BAK productivo:
+
+- core.usuario: 115 registros.
+- ped.unidadoperacional: 114 registros.
+- cat.articulo: 58 registros.
+- com.regla_comision: 286 registros.
+- com.regla_comision_historial: 286 registros.
+- hd.error: 40 registros.
+- com.semana: 35 registros.
+- core.rol_permiso: 30 registros.
+- core.permiso: 11 registros.
+- ped.capacidaduv: 7 registros.
+- ped.pedidos: 2 registros.
+- ped.pedido_detalle: 2 registros.
+- hd.ticket: 4 registros.
+
+Registros que existen localmente pero no vienen en el BAK productivo:
+
+- com.resultado_indicador: 12,220 registros.
+- com.resultado_doc: 9,776 registros.
+- com.base_comision_semanal: 1,222 registros.
+- com.calculo_comision: 1,222 registros.
+- core.empleado: 85 registros adicionales por llave primaria.
+
+Interpretacion:
+
+- El BAK productivo contiene usuarios/unidades operacionales reales de Pedidos que faltan en local.
+- La base local contiene historico/importacion de comisiones que no viene en este BAK.
+- No conviene reemplazar una base por la otra; el siguiente paso debe ser preparar una carga incremental controlada desde PortalV2_prod_compare hacia PortalV2, empezando por roles/permisos, usuarios, login y unidades operacionales.

@@ -911,6 +911,47 @@ Validacion:
 
 - npm.cmd run build finalizo correctamente en frontend.
 
+Fecha: 2026-05-01 - Prueba completa flujo Pedidos y correccion almacen automatico
+
+Se ejecuto prueba local completa usando cuentas importadas del BAK productivo:
+
+- Vendedor: uv103
+- Supervisor: sm107
+- Almacen: apt101
+
+Resultado inicial:
+
+- uv103 creo el pedido local IdPedido 3.
+- sm107 lo autorizo correctamente.
+- apt101 no pudo surtirlo y la API devolvio 403.
+
+Causa:
+
+- Al crear pedido desde una unidad vendedor, el backend tomaba el primer almacen activo de la sucursal.
+- En Tijuana existen dos almacenes activos:
+  - IdUnidad 1: ALMACEN TIJUANA, ligado al admin.
+  - IdUnidad 80: APT101 TIJUANA, ligado al flujo real de la unidad.
+- El pedido quedaba asignado a IdAlmacen 1, por eso apt101 no tenia alcance para surtir.
+
+Correccion:
+
+- Se ajusto backend/app/Http/Controllers/Ped/PedidoController.php.
+- El metodo unidadDelUsuario ahora ordena los almacenes candidatos y prefiere el que coincide con la cadena de supervision/gerencia de la unidad.
+- Para uv103 ahora se resuelve:
+  - Supervisor: SM107 TIJUANA
+  - ID_ALMACEN_UO: 80
+  - Almacen: APT101 TIJUANA
+
+Validacion:
+
+- php -l sin errores en PedidoController.php.
+- Se repitio el flujo con pedido local IdPedido 4:
+  - uv103 creo el pedido TIJ-PED-20260501-0002 en estado PENDIENTE.
+  - sm107 autorizo el pedido.
+  - apt101 surtio el pedido correctamente.
+- El pedido IdPedido 4 quedo en estado SURTIDO con IdAlmacen 80 APT101 TIJUANA.
+- El pedido IdPedido 3, generado durante la prueba fallida, se cancelo para no dejarlo pendiente.
+
 Fecha: 2026-05-01 - Pruebas locales por rol Pedidos
 
 Se prepararon cuentas locales de prueba del BAK productivo para validar el flujo por rol:

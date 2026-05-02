@@ -401,6 +401,13 @@ class PedidoController extends Controller
                 'a.IdUnidad as ID_ALMACEN_UO',
                 'a.Nombre as Almacen',
             )
+            ->orderByRaw("
+                CASE
+                    WHEN a.IdSupervisor = COALESCE(s.IdSupervisor, u.IdSupervisor) THEN 0
+                    WHEN a.IdUsuario IS NOT NULL THEN 1
+                    ELSE 2
+                END
+            ")
             ->first();
     }
 

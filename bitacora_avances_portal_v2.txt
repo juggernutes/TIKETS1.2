@@ -952,6 +952,28 @@ Validacion:
 - El pedido IdPedido 4 quedo en estado SURTIDO con IdAlmacen 80 APT101 TIJUANA.
 - El pedido IdPedido 3, generado durante la prueba fallida, se cancelo para no dejarlo pendiente.
 
+Fecha: 2026-05-01 - Ajuste guard cambio de contrasena temporal
+
+Se reviso el flujo de cuentas con DebeCambiarPassword activo.
+
+Problema detectado:
+
+- Si el usuario ya tenia token en localStorage y recargaba el navegador, el router evaluaba debeCambiarPassword antes de cargar /auth/me.
+- En ese caso el valor inicial podia ser falso y permitir una navegacion antes de redirigir a /cambiar-password.
+
+Correccion:
+
+- Se ajusto frontend/src/router/index.js.
+- El guard ahora primero carga el usuario autenticado si falta en el store.
+- Despues de cargar /auth/me valida debeCambiarPassword y redirige a /cambiar-password cuando corresponde.
+
+Validacion:
+
+- Respuestas API crudas de Pedidos verificadas con curl:
+  - /api/ped/pedidos devuelve JSON paginado normal.
+  - /api/ped/pedidos/4 devuelve detalle con unidad_pedido, detalles, articulo y estado_log.
+- npm.cmd run build finalizo correctamente en frontend.
+
 Fecha: 2026-05-01 - Pruebas locales por rol Pedidos
 
 Se prepararon cuentas locales de prueba del BAK productivo para validar el flujo por rol:

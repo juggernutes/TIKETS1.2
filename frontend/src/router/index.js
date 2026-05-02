@@ -72,14 +72,14 @@ router.beforeEach(async (to) => {
 
   if (!auth.estaAutenticado) return { name: 'login' }
 
-  if (auth.debeCambiarPassword && to.name !== 'cambiar-password') {
-    return { name: 'cambiar-password' }
-  }
-
   // Carga datos del usuario si aún no se han cargado
   if (!auth.usuario) {
     try { await auth.cargarUsuario() }
     catch { return { name: 'login' } }
+  }
+
+  if (auth.debeCambiarPassword && to.name !== 'cambiar-password') {
+    return { name: 'cambiar-password' }
   }
 
   if (to.meta.permiso && !auth.puede(to.meta.permiso)) {

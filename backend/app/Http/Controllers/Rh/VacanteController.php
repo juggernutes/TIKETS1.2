@@ -12,6 +12,35 @@ use Illuminate\Support\Facades\DB;
 
 class VacanteController extends Controller
 {
+    public function publicIndex(Request $request): JsonResponse
+    {
+        $query = Vacante::with(['area', 'puesto', 'sucursal'])
+            ->where('Activo', true)
+            ->where('Estatus', RhEstatusVacante::ABIERTA->value);
+
+        if ($request->filled('id_area')) {
+            $query->where('ID_Area', $request->integer('id_area'));
+        }
+
+        if ($request->filled('id_sucursal')) {
+            $query->where('ID_Sucursal', $request->integer('id_sucursal'));
+        }
+
+        $perPage = min(50, max(1, $request->integer('per_page', 20)));
+
+        return response()->json($query->orderByDesc('FechaPublicacion')->paginate($perPage));
+    }
+
+    public function publicShow(int $id): JsonResponse
+    {
+        $vacante = Vacante::with(['area', 'puesto', 'sucursal'])
+            ->where('Activo', true)
+            ->where('Estatus', RhEstatusVacante::ABIERTA->value)
+            ->findOrFail($id);
+
+        return response()->json($vacante);
+    }
+
     public function index(Request $request): JsonResponse
     {
         $query = Vacante::with(['area', 'puesto', 'sucursal', 'usuarioResponsable'])
@@ -49,6 +78,10 @@ class VacanteController extends Controller
             'ID_Sucursal'            => 'nullable|integer|exists:core.sucursal,ID_Sucursal',
             'ID_UsuarioSolicita'     => 'nullable|integer|exists:core.usuario,ID_Usuario',
             'ID_UsuarioResponsable'  => 'nullable|integer|exists:core.usuario,ID_Usuario',
+            'DetonanteTipo'          => 'nullable|string|in:BAJA_EMPLEADO,CREACION_PUESTO,NUEVA_POSICION',
+            'DetonanteEmpleadoNumero'=> 'nullable|integer|exists:core.empleado,Numero_Empleado',
+            'DetonantePuestoNombre'  => 'nullable|string|max:150',
+            'DetonanteComentario'    => 'nullable|string|max:500',
         ]);
 
         $vacante = Vacante::create($data);
@@ -85,6 +118,10 @@ class VacanteController extends Controller
             'ID_Area'               => 'nullable|integer|exists:core.area,ID_Area',
             'ID_Sucursal'           => 'nullable|integer|exists:core.sucursal,ID_Sucursal',
             'ID_UsuarioResponsable' => 'nullable|integer|exists:core.usuario,ID_Usuario',
+            'DetonanteTipo'         => 'nullable|string|in:BAJA_EMPLEADO,CREACION_PUESTO,NUEVA_POSICION',
+            'DetonanteEmpleadoNumero'=> 'nullable|integer|exists:core.empleado,Numero_Empleado',
+            'DetonantePuestoNombre' => 'nullable|string|max:150',
+            'DetonanteComentario'   => 'nullable|string|max:500',
         ]);
 
         $vacante->update($data);

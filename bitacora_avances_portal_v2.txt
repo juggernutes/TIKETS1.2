@@ -911,6 +911,79 @@ Validacion:
 
 - npm.cmd run build finalizo correctamente en frontend.
 
+Fecha: 2026-05-01 - RH detonacion de vacantes y postulacion publica
+
+Se inicio el flujo solicitado para RH: detonacion de vacante y captura publica de postulantes.
+
+Objetivo funcional:
+
+- Una vacante puede detonarse por:
+  - Baja de empleado.
+  - Creacion de puesto.
+  - Nueva posicion.
+- Un postulante externo puede entrar a una pantalla publica, capturar sus datos y enviar su postulacion.
+- El CV se recibe como archivo PDF/DOC/DOCX y se guarda como adjunto RH del candidato.
+
+Base de datos:
+
+- Se creo y aplico script idempotente:
+  - backend/database/sql/2026_05_01_extend_rh_vacante_detonante.sql
+- Agrega a rh.vacante:
+  - DetonanteTipo
+  - DetonanteEmpleadoNumero
+  - DetonantePuestoNombre
+  - DetonanteComentario
+- Se agrego restriccion para DetonanteTipo:
+  - BAJA_EMPLEADO
+  - CREACION_PUESTO
+  - NUEVA_POSICION
+
+Backend:
+
+- VacanteController:
+  - Agrega endpoints publicos para listar/ver vacantes abiertas.
+  - Permite guardar metadatos de detonante al crear/actualizar vacantes.
+- CandidatoController:
+  - Agrega endpoint publico para postularse a una vacante abierta.
+  - Asigna estatus inicial NUEVO.
+  - Asigna Fuente = PORTAL_PUBLICO.
+  - Si se carga CV, lo guarda como adjunto local en core.adjunto con entidad candidato_cv.
+  - Notifica al responsable de la vacante cuando llega un postulante.
+- routes/api.php:
+  - /api/public/rh/vacantes
+  - /api/public/rh/vacantes/{id}
+  - /api/public/rh/vacantes/{id}/postulaciones
+
+Frontend:
+
+- VacanteForm:
+  - Agrega selector de detonante.
+  - Agrega numero de empleado para baja.
+  - Agrega nombre del puesto nuevo para creacion de puesto.
+  - Agrega comentario del detonante.
+- Nueva pantalla publica:
+  - frontend/src/pages/rh/PostulacionPublicaPage.vue
+  - Ruta: /postular/:id
+  - Captura datos del postulante y permite adjuntar CV.
+- CandidatoDetalle:
+  - Agrega panel de adjuntos para CV y documentos con entidad candidato_cv.
+
+Validacion:
+
+- Script SQL ejecutado correctamente despues de separar lotes con GO.
+- php -l sin errores en:
+  - VacanteController.php
+  - CandidatoController.php
+  - routes/api.php
+- npm.cmd run build finalizo correctamente en frontend.
+- Endpoint publico probado:
+  - GET /api/public/rh/vacantes devuelve vacantes abiertas.
+  - GET /api/public/rh/vacantes/1 devuelve detalle publico.
+  - POST /api/public/rh/vacantes/1/postulaciones creo candidato de prueba ID_Candidato 3.
+- El candidato de prueba quedo con:
+  - Fuente: PORTAL_PUBLICO
+  - Estatus: NUEVO
+
 Fecha: 2026-05-01 - Prueba completa flujo Pedidos y correccion almacen automatico
 
 Se ejecuto prueba local completa usando cuentas importadas del BAK productivo:

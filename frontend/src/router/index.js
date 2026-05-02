@@ -15,6 +15,12 @@ const routes = [
     component: () => import('../pages/auth/CambiarPasswordPage.vue'),
     meta: { requiresAuth: true },
   },
+  {
+    path: '/postular/:id',
+    name: 'postulacion-publica',
+    component: () => import('../pages/rh/PostulacionPublicaPage.vue'),
+    meta: { public: true },
+  },
 
   // ── App principal ─────────────────────────────────────────────────────
   {

@@ -7,6 +7,11 @@ export const rhApi = {
   verVacante:          (id)     => client.get(`/rh/vacantes/${id}`),
   actualizarVacante:   (id, data) => client.patch(`/rh/vacantes/${id}`, data),
   cambiarEstatusVacante:(id, data) => client.patch(`/rh/vacantes/${id}/estatus`, data),
+  listarVacantesPublicas: (params) => client.get('/public/rh/vacantes', { params }),
+  verVacantePublica:   (id)     => client.get(`/public/rh/vacantes/${id}`),
+  postularVacante:     (id, data) => client.post(`/public/rh/vacantes/${id}/postulaciones`, data, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
 
   // Candidatos
   listarCandidatos:    (params) => client.get('/rh/candidatos', { params }),

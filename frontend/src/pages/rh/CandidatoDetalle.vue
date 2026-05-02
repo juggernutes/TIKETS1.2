@@ -24,12 +24,6 @@
               <span class="lbl">Postulación</span>
               <span>{{ formatFecha(candidato.FechaPostulacion) }}</span>
             </div>
-            <template v-if="candidato.CV_URL">
-              <Divider />
-              <a :href="candidato.CV_URL" target="_blank" class="cv-link">
-                <i class="pi pi-file-pdf" /> Ver CV
-              </a>
-            </template>
             <template v-if="candidato.Observaciones">
               <Divider />
               <p class="lbl mb-1">Observaciones</p>
@@ -37,6 +31,14 @@
             </template>
           </template>
         </Card>
+
+        <AdjuntosPanel
+          modulo="rh"
+          entidad="candidato_cv"
+          :idRef="candidato.ID_Candidato"
+          titulo="CV y documentos"
+          accept=".pdf,.doc,.docx"
+        />
 
         <!-- Entrevistas -->
         <Card class="mb-3">
@@ -166,6 +168,7 @@ import { rhApi } from '../../api/rh'
 import { formatFecha, formatMoneda } from '../../utils/formato'
 import PageHeader from '../../components/shared/PageHeader.vue'
 import EstatusTag from '../../components/shared/EstatusTag.vue'
+import AdjuntosPanel from '../../components/shared/AdjuntosPanel.vue'
 import Card        from 'primevue/card'
 import Button      from 'primevue/button'
 import Select      from 'primevue/select'

@@ -97,6 +97,13 @@ Route::prefix('catalogos')->group(function () {
 });
 
 // ── RUTAS PROTEGIDAS ──────────────────────────────────────────────────────
+// RH publico: bolsa de trabajo y postulaciones externas
+Route::prefix('public/rh')->group(function () {
+    Route::get('/vacantes', [VacanteController::class, 'publicIndex']);
+    Route::get('/vacantes/{id}', [VacanteController::class, 'publicShow']);
+    Route::post('/vacantes/{id}/postulaciones', [CandidatoController::class, 'postularPublico']);
+});
+
 Route::middleware('auth:sanctum')->group(function () {
 
     // ── CORE ─────────────────────────────────────────────────────────────
@@ -140,6 +147,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/candidatos',                     [CandidatoController::class, 'index']);
         Route::post('/candidatos',                    [CandidatoController::class, 'store']);
         Route::get('/candidatos/{id}',                [CandidatoController::class, 'show']);
+        Route::get('/candidatos/{id}/cv',             [CandidatoController::class, 'descargarCv']);
         Route::patch('/candidatos/{id}/estatus',      [CandidatoController::class, 'cambiarEstatus']);
 
         Route::post('/entrevistas',                   [EntrevistaController::class, 'store']);

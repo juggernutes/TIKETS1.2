@@ -26,6 +26,8 @@ class Vacante extends Model
         'FechaPublicacion', 'FechaCierre',
         'ID_Area', 'ID_Puesto', 'ID_Sucursal',
         'ID_UsuarioSolicita', 'ID_UsuarioResponsable',
+        'DetonanteTipo', 'DetonanteEmpleadoNumero',
+        'DetonantePuestoNombre', 'DetonanteComentario',
         'Estatus', 'Activo',
     ];
 

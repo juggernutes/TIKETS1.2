@@ -20,6 +20,25 @@
       </div>
 
       <div class="field">
+        <label>Detonante</label>
+        <Select v-model="form.DetonanteTipo" :options="detonantes"
+          optionLabel="label" optionValue="value"
+          class="w-full" placeholder="Selecciona..." showClear />
+      </div>
+
+      <div v-if="form.DetonanteTipo === 'BAJA_EMPLEADO'" class="field">
+        <label>No. empleado baja</label>
+        <InputNumber v-model="form.DetonanteEmpleadoNumero" :min="1"
+          class="w-full" :useGrouping="false" />
+      </div>
+
+      <div v-if="form.DetonanteTipo === 'CREACION_PUESTO'" class="field">
+        <label>Puesto nuevo</label>
+        <InputText v-model="form.DetonantePuestoNombre" class="w-full"
+          placeholder="Nombre del puesto a crear..." />
+      </div>
+
+      <div class="field">
         <label>Área *</label>
         <Select v-model="form.ID_Area" :options="cats.areas"
           optionLabel="Nombre" optionValue="ID_Area"
@@ -56,6 +75,12 @@
         <Textarea v-model="form.Requisitos" rows="2" class="w-full"
           placeholder="Escolaridad, experiencia, habilidades..." />
       </div>
+
+      <div class="field col-2">
+        <label>Comentario del detonante</label>
+        <Textarea v-model="form.DetonanteComentario" rows="2" class="w-full"
+          placeholder="Motivo de baja, justificacion del puesto o contexto operativo..." />
+      </div>
     </div>
 
     <Message v-if="error" severity="error" :closable="false" class="mt-1">{{ error }}</Message>
@@ -83,6 +108,11 @@ const cats = useCatalogosStore()
 
 const guardando = ref(false)
 const error     = ref('')
+const detonantes = [
+  { label: 'Baja de empleado', value: 'BAJA_EMPLEADO' },
+  { label: 'Creacion de puesto', value: 'CREACION_PUESTO' },
+  { label: 'Nueva posicion', value: 'NUEVA_POSICION' },
+]
 
 const form = reactive({
   Titulo:          '',
@@ -94,6 +124,10 @@ const form = reactive({
   SalarioMax:      null,
   Descripcion:     '',
   Requisitos:      '',
+  DetonanteTipo:   null,
+  DetonanteEmpleadoNumero: null,
+  DetonantePuestoNombre: '',
+  DetonanteComentario: '',
 })
 
 async function guardar() {

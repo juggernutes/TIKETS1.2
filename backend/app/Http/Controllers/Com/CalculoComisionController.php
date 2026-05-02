@@ -33,6 +33,14 @@ class CalculoComisionController extends Controller
             $query->whereHas('base', fn ($q) => $q->where('TCE', strtoupper($request->string('tce'))));
         }
 
+        if ($request->filled('canal')) {
+            $query->whereHas('base', fn ($q) => $q->where('Canal', strtoupper($request->string('canal'))));
+        }
+
+        if ($request->filled('puesto')) {
+            $query->whereHas('base', fn ($q) => $q->where('Puesto', strtoupper($request->string('puesto'))));
+        }
+
         $perPage = min(200, max(1, $request->integer('per_page', 50)));
 
         return response()->json($query->orderByDesc('FechaCalculo')->paginate($perPage));

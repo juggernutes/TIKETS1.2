@@ -979,6 +979,29 @@ Validacion:
 - GET /api/com/base-calculo?per_page=2 respondio con datos.
 - POST /api/com/ajustes con ID_Base inexistente devolvio 422 de validacion, no 500.
 
+Fecha: 2026-05-01 - Filtros de calculos en Comisiones
+
+Se continuo la validacion funcional del modulo de Comisiones.
+
+Hallazgo:
+
+- La pantalla frontend de Calculos envia el filtro canal a /api/com/calculos.
+- El backend no aplicaba ese parametro, por lo que el usuario podia filtrar por Tradicional/Moderno y recibir el mismo universo de registros.
+
+Cambio:
+
+- backend/app/Http/Controllers/Com/CalculoComisionController.php ahora filtra calculos por:
+  - canal, usando com.base_comision_semanal.Canal
+  - puesto, dejando el parametro listo para futuras pantallas
+
+Validacion:
+
+- php -l correcto en CalculoComisionController.
+- /api/com/calculos?per_page=1 devuelve 1,222 registros totales.
+- /api/com/calculos?per_page=1&canal=TRADICIONAL devuelve 759 registros.
+- /api/com/calculos?per_page=1&canal=MODERNO devuelve 447 registros.
+- npm.cmd run build del frontend finalizo correctamente antes de este ajuste backend.
+
 Fecha: 2026-05-01 - RH detonacion de vacantes y postulacion publica
 
 Se inicio el flujo solicitado para RH: detonacion de vacante y captura publica de postulantes.

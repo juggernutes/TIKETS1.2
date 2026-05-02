@@ -45,7 +45,12 @@
         <span class="lbl">Cuenta</span>
         <strong>{{ resetInfo.cuenta }}</strong>
         <span class="lbl">Contraseña temporal</span>
-        <code>{{ resetInfo.password_temporal }}</code>
+        <div class="password-row">
+          <code>{{ resetInfo.password_temporal }}</code>
+          <Button icon="pi pi-copy" text rounded
+            v-tooltip="'Copiar contraseña'"
+            @click="copiarPassword" />
+        </div>
         <p>El usuario deberá cambiarla al iniciar sesión.</p>
       </div>
       <template #footer>
@@ -137,6 +142,16 @@ function resetear(usuario) {
   })
 }
 
+async function copiarPassword() {
+  if (!resetInfo.value?.password_temporal) return
+  try {
+    await navigator.clipboard.writeText(resetInfo.value.password_temporal)
+    toast.add({ severity: 'success', summary: 'Contraseña copiada', life: 2000 })
+  } catch {
+    toast.add({ severity: 'warn', summary: 'No se pudo copiar', detail: resetInfo.value.password_temporal, life: 5000 })
+  }
+}
+
 onMounted(async () => {
   await cats.cargar()
   cargar()
@@ -167,6 +182,16 @@ code {
   background: rgba(255, 255, 255, 0.08);
   color: #fff;
   font-size: 1rem;
+}
+.password-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+.password-row code {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 @media (max-width: 900px) {
   .filtros-grid {

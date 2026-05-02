@@ -974,6 +974,22 @@ Validacion:
   - /api/ped/pedidos/4 devuelve detalle con unidad_pedido, detalles, articulo y estado_log.
 - npm.cmd run build finalizo correctamente en frontend.
 
+Fecha: 2026-05-01 - Mejora reset de contrasena en Usuarios
+
+Se mejoro la pantalla:
+
+- frontend/src/pages/core/UsuariosPage.vue
+
+Cambio:
+
+- El dialogo de contrasena temporal ahora muestra un boton con icono para copiar la contrasena al portapapeles.
+- Si el navegador no permite copiar, se muestra la contrasena en el detalle del aviso para poder tomarla manualmente.
+- Se mantuvo la indicacion de que el usuario debe cambiarla al iniciar sesion.
+
+Validacion:
+
+- npm.cmd run build finalizo correctamente en frontend.
+
 Fecha: 2026-05-01 - Pruebas locales por rol Pedidos
 
 Se prepararon cuentas locales de prueba del BAK productivo para validar el flujo por rol:

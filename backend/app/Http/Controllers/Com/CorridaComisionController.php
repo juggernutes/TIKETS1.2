@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Com\BaseComisionSemanal;
 use App\Models\Com\CorridaComision;
 use App\Models\Com\CorridaComisionLog;
+use App\Rules\SqlServerExists;
 use App\Support\ComisionCalculoService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -47,12 +48,12 @@ class CorridaComisionController extends Controller
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'ID_Semana'      => 'required|integer|exists:com.semana,ID_Semana',
+            'ID_Semana'      => ['required', 'integer', new SqlServerExists('com.semana', 'ID_Semana')],
             'FechaInicio'    => 'nullable|date',
             'FechaFin'       => 'nullable|date|after_or_equal:FechaInicio',
             'Observaciones'  => 'nullable|string|max:500',
             'ArchivoOrigen'  => 'nullable|string|max:255',
-            'ID_UsuarioCreo' => 'nullable|integer|exists:core.usuario,ID_Usuario',
+            'ID_UsuarioCreo' => ['nullable', 'integer', new SqlServerExists('core.usuario', 'ID_Usuario')],
         ]);
 
         $corrida = CorridaComision::create($data);
@@ -90,7 +91,7 @@ class CorridaComisionController extends Controller
         $data = $request->validate([
             'Estatus'        => 'required|string|in:BORRADOR,EN_PROCESO,CALCULADO,APROBADO,PAGADO,CANCELADO',
             'Comentario'     => 'nullable|string|max:500',
-            'ID_Usuario'     => 'nullable|integer|exists:core.usuario,ID_Usuario',
+            'ID_Usuario'     => ['nullable', 'integer', new SqlServerExists('core.usuario', 'ID_Usuario')],
         ]);
 
         $destino   = strtoupper($data['Estatus']);
@@ -131,7 +132,7 @@ class CorridaComisionController extends Controller
         }
 
         $data = $request->validate([
-            'ID_Usuario' => 'nullable|integer|exists:core.usuario,ID_Usuario',
+            'ID_Usuario' => ['nullable', 'integer', new SqlServerExists('core.usuario', 'ID_Usuario')],
         ]);
 
         $idUsuario = $data['ID_Usuario'] ?? 0;

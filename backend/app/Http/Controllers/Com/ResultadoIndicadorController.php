@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Com\BaseComisionSemanal;
 use App\Models\Com\Indicador;
 use App\Models\Com\ResultadoIndicador;
+use App\Rules\SqlServerExists;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -58,7 +59,7 @@ class ResultadoIndicadorController extends Controller
             'clave_indicador' => 'required|string|in:DF1,DAU',
             'ValorReal'       => 'required|numeric|min:0',
             'Observaciones'   => 'nullable|string|max:300',
-            'ID_UsuarioCreo'  => 'nullable|integer|exists:core.usuario,ID_Usuario',
+            'ID_UsuarioCreo'  => ['nullable', 'integer', new SqlServerExists('core.usuario', 'ID_Usuario')],
         ]);
 
         $indicador = Indicador::where('Clave', $data['clave_indicador'])->firstOrFail();
@@ -87,7 +88,7 @@ class ResultadoIndicadorController extends Controller
 
         $data = $request->validate([
             'clave_indicador'        => 'required|string|in:VOL,EFE,EFI,COB,NSE',
-            'ID_SubIndicador'        => 'nullable|integer|exists:com.sub_indicador,ID_SubIndicador',
+            'ID_SubIndicador'        => ['nullable', 'integer', new SqlServerExists('com.sub_indicador', 'ID_SubIndicador')],
             'ValorReal'              => 'required|numeric|min:0',
             'Meta'                   => 'nullable|numeric|min:0',
             'ClientesActivos'        => 'nullable|integer|min:0',
@@ -95,7 +96,7 @@ class ResultadoIndicadorController extends Controller
             'ClientesConCompra'      => 'nullable|integer|min:0',
             'PorcentajeCumplimiento' => 'nullable|numeric|min:0',
             'Observaciones'          => 'nullable|string|max:300',
-            'ID_UsuarioCreo'         => 'nullable|integer|exists:core.usuario,ID_Usuario',
+            'ID_UsuarioCreo'         => ['nullable', 'integer', new SqlServerExists('core.usuario', 'ID_Usuario')],
         ]);
 
         $indicador = Indicador::where('Clave', $data['clave_indicador'])->firstOrFail();
@@ -132,16 +133,16 @@ class ResultadoIndicadorController extends Controller
     {
         $request->validate([
             'registros'                          => 'required|array|min:1',
-            'registros.*.ID_Base'                => 'required|integer|exists:com.base_comision_semanal,ID_Base',
+            'registros.*.ID_Base'                => ['required', 'integer', new SqlServerExists('com.base_comision_semanal', 'ID_Base')],
             'registros.*.clave_indicador'        => 'required|string|in:VOL,EFE,EFI,COB,NSE,DF1,DAU',
-            'registros.*.ID_SubIndicador'        => 'nullable|integer|exists:com.sub_indicador,ID_SubIndicador',
+            'registros.*.ID_SubIndicador'        => ['nullable', 'integer', new SqlServerExists('com.sub_indicador', 'ID_SubIndicador')],
             'registros.*.ValorReal'              => 'required|numeric|min:0',
             'registros.*.Meta'                   => 'nullable|numeric|min:0',
             'registros.*.ClientesActivos'        => 'nullable|integer|min:0',
             'registros.*.ClientesVisitados'      => 'nullable|integer|min:0',
             'registros.*.ClientesConCompra'      => 'nullable|integer|min:0',
             'registros.*.PorcentajeCumplimiento' => 'nullable|numeric|min:0',
-            'ID_UsuarioCreo'                     => 'nullable|integer|exists:core.usuario,ID_Usuario',
+            'ID_UsuarioCreo'                     => ['nullable', 'integer', new SqlServerExists('core.usuario', 'ID_Usuario')],
         ]);
 
         $idUsuario    = $request->integer('ID_UsuarioCreo');

@@ -6,6 +6,7 @@ use App\Enums\ComEstatusComision;
 use App\Http\Controllers\Controller;
 use App\Models\Com\CalculoComision;
 use App\Models\Core\Notificacion;
+use App\Rules\SqlServerExists;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -58,7 +59,7 @@ class CalculoComisionController extends Controller
 
         $data = $request->validate([
             'estatus'      => 'required|string',
-            'ID_Usuario'   => 'nullable|integer|exists:core.usuario,ID_Usuario',
+            'ID_Usuario'   => ['nullable', 'integer', new SqlServerExists('core.usuario', 'ID_Usuario')],
             'Observaciones'=> 'nullable|string|max:500',
         ]);
 

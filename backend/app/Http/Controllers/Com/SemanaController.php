@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Com\MetaMesPortada;
 use App\Models\Com\MetaSemanal;
 use App\Models\Com\Semana;
+use App\Rules\SqlServerExists;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -41,11 +42,11 @@ class SemanaController extends Controller
             'Semana'            => 'required|integer|min:1|max:53',
             'FechaInicio'       => 'required|date',
             'FechaFin'          => 'required|date|after_or_equal:FechaInicio',
-            'ID_MetaMesInicio'  => 'required|integer|exists:com.meta_mes_portada,ID_MetaMes',
-            'ID_MetaMesFinal'   => 'nullable|integer|exists:com.meta_mes_portada,ID_MetaMes',
+            'ID_MetaMesInicio'  => ['required', 'integer', new SqlServerExists('com.meta_mes_portada', 'ID_MetaMes')],
+            'ID_MetaMesFinal'   => ['nullable', 'integer', new SqlServerExists('com.meta_mes_portada', 'ID_MetaMes')],
             'DiasMesInicio'     => 'required|integer|min:1|max:7',
             'DiasMesFinal'      => 'nullable|integer|min:0|max:6',
-            'ID_UsuarioCreo'    => 'nullable|integer|exists:core.usuario,ID_Usuario',
+            'ID_UsuarioCreo'    => ['nullable', 'integer', new SqlServerExists('core.usuario', 'ID_Usuario')],
         ]);
 
         // Validar que DiasMesInicio + DiasMesFinal == días de la semana
@@ -104,8 +105,8 @@ class SemanaController extends Controller
         $data = $request->validate([
             'FechaInicio'      => 'sometimes|date',
             'FechaFin'         => 'sometimes|date|after_or_equal:FechaInicio',
-            'ID_MetaMesInicio' => 'sometimes|integer|exists:com.meta_mes_portada,ID_MetaMes',
-            'ID_MetaMesFinal'  => 'nullable|integer|exists:com.meta_mes_portada,ID_MetaMes',
+            'ID_MetaMesInicio' => ['sometimes', 'integer', new SqlServerExists('com.meta_mes_portada', 'ID_MetaMes')],
+            'ID_MetaMesFinal'  => ['nullable', 'integer', new SqlServerExists('com.meta_mes_portada', 'ID_MetaMes')],
             'DiasMesInicio'    => 'sometimes|integer|min:1|max:7',
             'DiasMesFinal'     => 'nullable|integer|min:0|max:6',
             'Activo'           => 'sometimes|boolean',

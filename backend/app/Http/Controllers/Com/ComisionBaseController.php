@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Com;
 use App\Http\Controllers\Controller;
 use App\Models\Com\BaseComisionSemanal;
 use App\Models\Com\ComisionBase;
+use App\Rules\SqlServerExists;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -43,11 +44,11 @@ class ComisionBaseController extends Controller
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'ID_Semana'       => 'required|integer|exists:com.semana,ID_Semana',
-            'IdUnidad'        => 'required|integer|exists:ped.unidadoperacional,IdUnidad',
-            'Numero_Empleado' => 'required|integer|exists:core.empleado,Numero_Empleado',
+            'ID_Semana'       => ['required', 'integer', new SqlServerExists('com.semana', 'ID_Semana')],
+            'IdUnidad'        => ['required', 'integer', new SqlServerExists('ped.unidadoperacional', 'IdUnidad')],
+            'Numero_Empleado' => ['required', 'integer', new SqlServerExists('core.empleado', 'Numero_Empleado')],
             'Observaciones'   => 'nullable|string|max:500',
-            'ID_UsuarioCreo'  => 'nullable|integer|exists:core.usuario,ID_Usuario',
+            'ID_UsuarioCreo'  => ['nullable', 'integer', new SqlServerExists('core.usuario', 'ID_Usuario')],
         ]);
 
         $base = ComisionBase::create($data);
@@ -106,11 +107,11 @@ class ComisionBaseController extends Controller
     public function storeBulk(Request $request): JsonResponse
     {
         $request->validate([
-            'ID_Semana'         => 'required|integer|exists:com.semana,ID_Semana',
-            'ID_UsuarioCreo'    => 'nullable|integer|exists:core.usuario,ID_Usuario',
+            'ID_Semana'         => ['required', 'integer', new SqlServerExists('com.semana', 'ID_Semana')],
+            'ID_UsuarioCreo'    => ['nullable', 'integer', new SqlServerExists('core.usuario', 'ID_Usuario')],
             'asignaciones'      => 'required|array|min:1',
-            'asignaciones.*.IdUnidad'        => 'required|integer|exists:ped.unidadoperacional,IdUnidad',
-            'asignaciones.*.Numero_Empleado' => 'required|integer|exists:core.empleado,Numero_Empleado',
+            'asignaciones.*.IdUnidad'        => ['required', 'integer', new SqlServerExists('ped.unidadoperacional', 'IdUnidad')],
+            'asignaciones.*.Numero_Empleado' => ['required', 'integer', new SqlServerExists('core.empleado', 'Numero_Empleado')],
             'asignaciones.*.Observaciones'   => 'nullable|string|max:500',
         ]);
 

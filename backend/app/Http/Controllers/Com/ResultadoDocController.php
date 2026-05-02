@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Com\BaseComisionSemanal;
 use App\Models\Com\ResultadoDoc;
 use App\Models\Com\SubIndicador;
+use App\Rules\SqlServerExists;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -42,11 +43,11 @@ class ResultadoDocController extends Controller
 
         $request->validate([
             'conceptos'                      => 'required|array|min:1',
-            'conceptos.*.ID_SubIndicador'    => 'required|integer|exists:com.sub_indicador,ID_SubIndicador',
+            'conceptos.*.ID_SubIndicador'    => ['required', 'integer', new SqlServerExists('com.sub_indicador', 'ID_SubIndicador')],
             'conceptos.*.Cumplido'           => 'required|boolean',
             'conceptos.*.MontoConcepto'      => 'nullable|numeric|min:0',
             'conceptos.*.Observaciones'      => 'nullable|string|max:200',
-            'ID_UsuarioCreo'                 => 'nullable|integer|exists:core.usuario,ID_Usuario',
+            'ID_UsuarioCreo'                 => ['nullable', 'integer', new SqlServerExists('core.usuario', 'ID_Usuario')],
         ]);
 
         $idUsuario    = $request->integer('ID_UsuarioCreo');

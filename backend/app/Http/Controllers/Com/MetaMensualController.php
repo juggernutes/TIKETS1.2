@@ -7,6 +7,7 @@ use App\Models\Com\MetaMensualContenido;
 use App\Models\Com\MetaMesPortada;
 use App\Models\Com\MetaSemanal;
 use App\Models\Com\Semana;
+use App\Rules\SqlServerExists;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -40,7 +41,7 @@ class MetaMensualController extends Controller
             'Mes'             => 'required|integer|between:1,12',
             'Nombre'          => 'required|string|max:15',
             'DiasHabiles'     => 'required|integer|between:1,31',
-            'ID_UsuarioCreo'  => 'nullable|integer|exists:core.usuario,ID_Usuario',
+            'ID_UsuarioCreo'  => ['nullable', 'integer', new SqlServerExists('core.usuario', 'ID_Usuario')],
         ]);
 
         $portada = MetaMesPortada::create($data);
@@ -66,7 +67,7 @@ class MetaMensualController extends Controller
         $data = $request->validate([
             'Nombre'               => 'sometimes|string|max:15',
             'DiasHabiles'          => 'sometimes|integer|between:1,31',
-            'ID_UsuarioModifico'   => 'nullable|integer|exists:core.usuario,ID_Usuario',
+            'ID_UsuarioModifico'   => ['nullable', 'integer', new SqlServerExists('core.usuario', 'ID_Usuario')],
         ]);
 
         $data['FechaModificacion'] = now();
@@ -90,12 +91,12 @@ class MetaMensualController extends Controller
 
         $request->validate([
             'metas'                          => 'required|array|min:1',
-            'metas.*.IdUnidad'               => 'required|integer|exists:ped.unidadoperacional,IdUnidad',
-            'metas.*.IdLineaArticulo'        => 'required|integer|exists:cat.linea_articulo,IdLineaArticulo',
+            'metas.*.IdUnidad'               => ['required', 'integer', new SqlServerExists('ped.unidadoperacional', 'IdUnidad')],
+            'metas.*.IdLineaArticulo'        => ['required', 'integer', new SqlServerExists('cat.linea_articulo', 'IdLineaArticulo')],
             'metas.*.Meta'                   => 'required|numeric|min:0',
             'metas.*.Porcentaje'             => 'required|numeric|min:0',
             'metas.*.Mezcla'                 => 'required|numeric|min:0',
-            'ID_UsuarioCreo'                 => 'nullable|integer|exists:core.usuario,ID_Usuario',
+            'ID_UsuarioCreo'                 => ['nullable', 'integer', new SqlServerExists('core.usuario', 'ID_Usuario')],
         ]);
 
         $idUsuario    = $request->integer('ID_UsuarioCreo');

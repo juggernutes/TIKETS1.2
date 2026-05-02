@@ -941,6 +941,44 @@ Validacion:
 - PATCH /api/rh/vacantes/1 respondio "Vacante actualizada." con detonante BAJA_EMPLEADO.
 - PATCH /api/rh/candidatos/3/estatus respondio "Estatus actualizado." y cambio a EN_REVISION.
 
+Fecha: 2026-05-01 - Correccion validaciones Comisiones SQL Server
+
+Se continuo con el modulo de Comisiones, enfocando la validacion en errores potenciales al guardar informacion.
+
+Diagnostico:
+
+- Los controladores de Comisiones tenian reglas Laravel exists: con tablas por esquema SQL Server, por ejemplo com.base_comision_semanal y core.usuario.
+- Laravel puede interpretar el prefijo antes del punto como conexion de base de datos, generando errores 500 tipo "Database connection [com] not configured".
+- El riesgo afectaba semanas, corridas, base empleados, metas, reglas, resultados, checklist DOC, ajustes y calculos.
+
+Cambio:
+
+- Se agrego la regla reutilizable backend/app/Rules/SqlServerExists.php.
+- La regla valida existencia usando DB::table('schema.tabla'), respetando esquemas SQL Server.
+- Se reemplazaron las reglas exists: en backend/app/Http/Controllers/Com por SqlServerExists.
+
+Archivos modificados:
+
+- backend/app/Rules/SqlServerExists.php
+- backend/app/Http/Controllers/Com/AjusteComisionController.php
+- backend/app/Http/Controllers/Com/CalculoComisionController.php
+- backend/app/Http/Controllers/Com/ComisionBaseController.php
+- backend/app/Http/Controllers/Com/CorridaComisionController.php
+- backend/app/Http/Controllers/Com/MetaMensualController.php
+- backend/app/Http/Controllers/Com/ReglaComisionController.php
+- backend/app/Http/Controllers/Com/ResultadoDocController.php
+- backend/app/Http/Controllers/Com/ResultadoIndicadorController.php
+- backend/app/Http/Controllers/Com/SemanaController.php
+
+Validacion:
+
+- php -l correcto en SqlServerExists y todos los controladores Com modificados.
+- No quedaron reglas exists: dentro de backend/app/Http/Controllers/Com.
+- GET /api/com/corridas?per_page=2 respondio con datos.
+- GET /api/com/calculos?per_page=2 respondio con datos.
+- GET /api/com/base-calculo?per_page=2 respondio con datos.
+- POST /api/com/ajustes con ID_Base inexistente devolvio 422 de validacion, no 500.
+
 Fecha: 2026-05-01 - RH detonacion de vacantes y postulacion publica
 
 Se inicio el flujo solicitado para RH: detonacion de vacante y captura publica de postulantes.

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Com;
 use App\Http\Controllers\Controller;
 use App\Models\Com\AjusteComision;
 use App\Models\Com\BaseComisionSemanal;
+use App\Rules\SqlServerExists;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -43,12 +44,12 @@ class AjusteComisionController extends Controller
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'ID_Base'       => 'required|integer|exists:com.base_comision_semanal,ID_Base',
+            'ID_Base'       => ['required', 'integer', new SqlServerExists('com.base_comision_semanal', 'ID_Base')],
             'TipoAjuste'    => 'required|string|in:DESCUENTO,AGREGADO,SR1,SR2',
             'DiasDescuento' => 'nullable|integer|min:1|max:7',
             'Monto'         => 'nullable|numeric|min:0',
             'Motivo'        => 'nullable|string|max:300',
-            'ID_UsuarioCreo'=> 'nullable|integer|exists:core.usuario,ID_Usuario',
+            'ID_UsuarioCreo'=> ['nullable', 'integer', new SqlServerExists('core.usuario', 'ID_Usuario')],
         ]);
 
         // SR1/SR2 requieren DiasDescuento; DESCUENTO/AGREGADO requieren Monto
@@ -98,7 +99,7 @@ class AjusteComisionController extends Controller
             'ajustes.*.DiasDescuento'=> 'nullable|integer|min:1|max:7',
             'ajustes.*.Monto'       => 'nullable|numeric|min:0',
             'ajustes.*.Motivo'      => 'nullable|string|max:300',
-            'ID_UsuarioCreo'        => 'nullable|integer|exists:core.usuario,ID_Usuario',
+            'ID_UsuarioCreo'        => ['nullable', 'integer', new SqlServerExists('core.usuario', 'ID_Usuario')],
         ]);
 
         $idUsuario = $request->integer('ID_UsuarioCreo') ?: null;

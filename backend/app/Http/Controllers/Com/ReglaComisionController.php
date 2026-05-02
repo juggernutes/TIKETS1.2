@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Com;
 
 use App\Http\Controllers\Controller;
 use App\Models\Com\ReglaComision;
+use App\Rules\SqlServerExists;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -52,8 +53,8 @@ class ReglaComisionController extends Controller
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'ID_Indicador'     => 'required|integer|exists:com.indicador,ID_Indicador',
-            'ID_SubIndicador'  => 'nullable|integer|exists:com.sub_indicador,ID_SubIndicador',
+            'ID_Indicador'     => ['required', 'integer', new SqlServerExists('com.indicador', 'ID_Indicador')],
+            'ID_SubIndicador'  => ['nullable', 'integer', new SqlServerExists('com.sub_indicador', 'ID_SubIndicador')],
             'TCE'              => 'nullable|string|in:VT,VM,XT,XM',
             'Puesto'           => 'nullable|string|in:VENDEDOR,SUPERVISOR',
             'Canal'            => 'nullable|string|in:TRADICIONAL,MODERNO',
@@ -61,7 +62,7 @@ class ReglaComisionController extends Controller
             'PorcentajeMaximo' => 'required|numeric|min:0|gte:PorcentajeMinimo',
             'Monto'            => 'required|numeric|min:0',
             'Factor'           => 'nullable|numeric|min:0',
-            'ID_UsuarioCreo'   => 'nullable|integer|exists:core.usuario,ID_Usuario',
+            'ID_UsuarioCreo'   => ['nullable', 'integer', new SqlServerExists('core.usuario', 'ID_Usuario')],
         ]);
 
         $data['Activo'] = true;
@@ -105,7 +106,7 @@ class ReglaComisionController extends Controller
             'Monto'            => 'sometimes|numeric|min:0',
             'Factor'           => 'nullable|numeric|min:0',
             'Activo'           => 'sometimes|boolean',
-            'ID_Usuario'       => 'nullable|integer|exists:core.usuario,ID_Usuario',
+            'ID_Usuario'       => ['nullable', 'integer', new SqlServerExists('core.usuario', 'ID_Usuario')],
         ]);
 
         // Validar rango si se envían ambos extremos
@@ -152,8 +153,8 @@ class ReglaComisionController extends Controller
     {
         $request->validate([
             'reglas'                    => 'required|array|min:1',
-            'reglas.*.ID_Indicador'     => 'required|integer|exists:com.indicador,ID_Indicador',
-            'reglas.*.ID_SubIndicador'  => 'nullable|integer|exists:com.sub_indicador,ID_SubIndicador',
+            'reglas.*.ID_Indicador'     => ['required', 'integer', new SqlServerExists('com.indicador', 'ID_Indicador')],
+            'reglas.*.ID_SubIndicador'  => ['nullable', 'integer', new SqlServerExists('com.sub_indicador', 'ID_SubIndicador')],
             'reglas.*.TCE'              => 'nullable|string|in:VT,VM,XT,XM',
             'reglas.*.Puesto'           => 'nullable|string|in:VENDEDOR,SUPERVISOR',
             'reglas.*.Canal'            => 'nullable|string|in:TRADICIONAL,MODERNO',
@@ -161,7 +162,7 @@ class ReglaComisionController extends Controller
             'reglas.*.PorcentajeMaximo' => 'required|numeric|min:0',
             'reglas.*.Monto'            => 'required|numeric|min:0',
             'reglas.*.Factor'           => 'nullable|numeric|min:0',
-            'ID_UsuarioCreo'            => 'nullable|integer|exists:core.usuario,ID_Usuario',
+            'ID_UsuarioCreo'            => ['nullable', 'integer', new SqlServerExists('core.usuario', 'ID_Usuario')],
         ]);
 
         $idUsuario = $request->integer('ID_UsuarioCreo') ?: null;

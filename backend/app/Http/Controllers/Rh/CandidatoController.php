@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class CandidatoController extends Controller
 {
@@ -47,8 +48,8 @@ class CandidatoController extends Controller
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'ID_Vacante'            => 'required|integer|exists:rh.vacante,ID_Vacante',
-            'ID_EstatusCandidato'   => 'required|integer|exists:rh.estatus_candidato,ID_EstatusCandidato',
+            'ID_Vacante'            => 'required|integer',
+            'ID_EstatusCandidato'   => 'required|integer',
             'Nombre'                => 'required|string|max:100',
             'ApellidoPaterno'       => 'nullable|string|max:100',
             'ApellidoMaterno'       => 'nullable|string|max:100',
@@ -66,6 +67,9 @@ class CandidatoController extends Controller
             'PretensionSalarial'    => 'nullable|numeric|min:0',
             'Observaciones'         => 'nullable|string',
         ]);
+
+        $this->validarExiste($data, 'ID_Vacante', 'rh.vacante', 'ID_Vacante', 'La vacante seleccionada no existe.');
+        $this->validarExiste($data, 'ID_EstatusCandidato', 'rh.estatus_candidato', 'ID_EstatusCandidato', 'El estatus seleccionado no existe.');
 
         $candidato = Candidato::create($data);
 
@@ -171,10 +175,13 @@ class CandidatoController extends Controller
         $candidato = Candidato::findOrFail($id);
 
         $data = $request->validate([
-            'ID_EstatusCandidato' => 'required|integer|exists:rh.estatus_candidato,ID_EstatusCandidato',
+            'ID_EstatusCandidato' => 'required|integer',
             'Comentario'          => 'nullable|string|max:500',
-            'ID_Usuario'          => 'nullable|integer|exists:core.usuario,ID_Usuario',
+            'ID_Usuario'          => 'nullable|integer',
         ]);
+
+        $this->validarExiste($data, 'ID_EstatusCandidato', 'rh.estatus_candidato', 'ID_EstatusCandidato', 'El estatus seleccionado no existe.');
+        $this->validarExiste($data, 'ID_Usuario', 'core.usuario', 'ID_Usuario', 'El usuario seleccionado no existe.');
 
         $estatusAnterior = $candidato->ID_EstatusCandidato;
         $candidato->ID_EstatusCandidato = $data['ID_EstatusCandidato'];
@@ -260,5 +267,18 @@ class CandidatoController extends Controller
         ]);
 
         return "/api/rh/candidatos/{$candidato->ID_Candidato}/cv";
+    }
+
+    private function validarExiste(array $data, string $campo, string $tabla, string $columna, string $mensaje): void
+    {
+        if (!array_key_exists($campo, $data) || $data[$campo] === null || $data[$campo] === '') {
+            return;
+        }
+
+        $existe = DB::table($tabla)->where($columna, $data[$campo])->exists();
+
+        if (!$existe) {
+            throw ValidationException::withMessages([$campo => [$mensaje]]);
+        }
     }
 }

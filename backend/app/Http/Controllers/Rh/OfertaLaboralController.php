@@ -9,18 +9,22 @@ use App\Enums\RhEstatusOferta;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class OfertaLaboralController extends Controller
 {
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'ID_Candidato'    => 'required|integer|exists:rh.candidato,ID_Candidato',
-            'ID_Vacante'      => 'required|integer|exists:rh.vacante,ID_Vacante',
+            'ID_Candidato'    => 'required|integer',
+            'ID_Vacante'      => 'required|integer',
             'SalarioOfertado' => 'required|numeric|min:0',
             'FechaVencimiento'=> 'nullable|date|after:today',
             'FechaIngreso'    => 'nullable|date',
         ]);
+
+        $this->validarExiste($data, 'ID_Candidato', 'rh.candidato', 'ID_Candidato', 'El candidato seleccionado no existe.');
+        $this->validarExiste($data, 'ID_Vacante', 'rh.vacante', 'ID_Vacante', 'La vacante seleccionada no existe.');
 
         $oferta = OfertaLaboral::create($data);
 
@@ -91,5 +95,18 @@ class OfertaLaboralController extends Controller
             'message' => 'Respuesta registrada.',
             'data'    => $oferta->fresh(),
         ]);
+    }
+
+    private function validarExiste(array $data, string $campo, string $tabla, string $columna, string $mensaje): void
+    {
+        if (!array_key_exists($campo, $data) || $data[$campo] === null || $data[$campo] === '') {
+            return;
+        }
+
+        $existe = DB::table($tabla)->where($columna, $data[$campo])->exists();
+
+        if (!$existe) {
+            throw ValidationException::withMessages([$campo => [$mensaje]]);
+        }
     }
 }

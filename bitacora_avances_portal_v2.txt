@@ -911,6 +911,36 @@ Validacion:
 
 - npm.cmd run build finalizo correctamente en frontend.
 
+Fecha: 2026-05-01 - Correccion validaciones RH al actualizar vacante
+
+Se valido el error reportado al actualizar vacantes en el modulo RH.
+
+Diagnostico:
+
+- Laravel interpretaba reglas como exists:rh.estatus_candidato y exists:core.usuario como conexiones llamadas rh/core.
+- En SQL Server esos nombres son esquemas, por lo que la validacion detonaba errores 500 tipo "Database connection [rh] not configured".
+- El mismo patron estaba en vacantes, candidatos, entrevistas y ofertas laborales.
+
+Cambio:
+
+- Se retiraron las reglas exists con esquema SQL Server de los controladores RH.
+- Se dejo la validacion de tipo/formato en Request::validate.
+- La existencia de catalogos ahora se valida manualmente con DB::table('schema.tabla'), devolviendo 422 cuando el dato no existe.
+
+Archivos modificados:
+
+- backend/app/Http/Controllers/Rh/VacanteController.php
+- backend/app/Http/Controllers/Rh/CandidatoController.php
+- backend/app/Http/Controllers/Rh/EntrevistaController.php
+- backend/app/Http/Controllers/Rh/OfertaLaboralController.php
+
+Validacion:
+
+- php -l correcto en los cuatro controladores RH modificados.
+- No quedaron reglas exists: dentro de backend/app/Http/Controllers/Rh.
+- PATCH /api/rh/vacantes/1 respondio "Vacante actualizada." con detonante BAJA_EMPLEADO.
+- PATCH /api/rh/candidatos/3/estatus respondio "Estatus actualizado." y cambio a EN_REVISION.
+
 Fecha: 2026-05-01 - RH detonacion de vacantes y postulacion publica
 
 Se inicio el flujo solicitado para RH: detonacion de vacante y captura publica de postulantes.

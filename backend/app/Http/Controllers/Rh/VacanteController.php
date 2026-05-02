@@ -9,6 +9,7 @@ use App\Enums\RhEstatusVacante;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class VacanteController extends Controller
 {
@@ -73,16 +74,18 @@ class VacanteController extends Controller
             'SalarioMin'             => 'nullable|numeric|min:0',
             'SalarioMax'             => 'nullable|numeric|gte:SalarioMin',
             'NumeroPosiciones'       => 'integer|min:1',
-            'ID_Area'                => 'nullable|integer|exists:core.area,ID_Area',
-            'ID_Puesto'              => 'nullable|integer|exists:core.puesto,ID_Puesto',
-            'ID_Sucursal'            => 'nullable|integer|exists:core.sucursal,ID_Sucursal',
-            'ID_UsuarioSolicita'     => 'nullable|integer|exists:core.usuario,ID_Usuario',
-            'ID_UsuarioResponsable'  => 'nullable|integer|exists:core.usuario,ID_Usuario',
+            'ID_Area'                => 'nullable|integer',
+            'ID_Puesto'              => 'nullable|integer',
+            'ID_Sucursal'            => 'nullable|integer',
+            'ID_UsuarioSolicita'     => 'nullable|integer',
+            'ID_UsuarioResponsable'  => 'nullable|integer',
             'DetonanteTipo'          => 'nullable|string|in:BAJA_EMPLEADO,CREACION_PUESTO,NUEVA_POSICION',
-            'DetonanteEmpleadoNumero'=> 'nullable|integer|exists:core.empleado,Numero_Empleado',
+            'DetonanteEmpleadoNumero'=> 'nullable|integer',
             'DetonantePuestoNombre'  => 'nullable|string|max:150',
             'DetonanteComentario'    => 'nullable|string|max:500',
         ]);
+
+        $this->validarCatalogos($data);
 
         $vacante = Vacante::create($data);
 
@@ -115,14 +118,18 @@ class VacanteController extends Controller
             'SalarioMin'            => 'nullable|numeric|min:0',
             'SalarioMax'            => 'nullable|numeric',
             'NumeroPosiciones'      => 'sometimes|integer|min:1',
-            'ID_Area'               => 'nullable|integer|exists:core.area,ID_Area',
-            'ID_Sucursal'           => 'nullable|integer|exists:core.sucursal,ID_Sucursal',
-            'ID_UsuarioResponsable' => 'nullable|integer|exists:core.usuario,ID_Usuario',
+            'ID_Area'               => 'nullable|integer',
+            'ID_Puesto'             => 'nullable|integer',
+            'ID_Sucursal'           => 'nullable|integer',
+            'ID_UsuarioSolicita'    => 'nullable|integer',
+            'ID_UsuarioResponsable' => 'nullable|integer',
             'DetonanteTipo'         => 'nullable|string|in:BAJA_EMPLEADO,CREACION_PUESTO,NUEVA_POSICION',
-            'DetonanteEmpleadoNumero'=> 'nullable|integer|exists:core.empleado,Numero_Empleado',
+            'DetonanteEmpleadoNumero'=> 'nullable|integer',
             'DetonantePuestoNombre' => 'nullable|string|max:150',
             'DetonanteComentario'   => 'nullable|string|max:500',
         ]);
+
+        $this->validarCatalogos($data);
 
         $vacante->update($data);
 
@@ -184,5 +191,28 @@ class VacanteController extends Controller
             'message' => 'Estatus actualizado.',
             'data'    => $vacante->fresh(),
         ]);
+    }
+
+    private function validarCatalogos(array $data): void
+    {
+        $this->validarExiste($data, 'ID_Area', 'core.area', 'ID_Area', 'El area seleccionada no existe.');
+        $this->validarExiste($data, 'ID_Puesto', 'core.puesto', 'ID_Puesto', 'El puesto seleccionado no existe.');
+        $this->validarExiste($data, 'ID_Sucursal', 'core.sucursal', 'ID_Sucursal', 'La sucursal seleccionada no existe.');
+        $this->validarExiste($data, 'ID_UsuarioSolicita', 'core.usuario', 'ID_Usuario', 'El usuario solicitante no existe.');
+        $this->validarExiste($data, 'ID_UsuarioResponsable', 'core.usuario', 'ID_Usuario', 'El usuario responsable no existe.');
+        $this->validarExiste($data, 'DetonanteEmpleadoNumero', 'core.empleado', 'Numero_Empleado', 'El empleado detonante no existe.');
+    }
+
+    private function validarExiste(array $data, string $campo, string $tabla, string $columna, string $mensaje): void
+    {
+        if (!array_key_exists($campo, $data) || $data[$campo] === null || $data[$campo] === '') {
+            return;
+        }
+
+        $existe = DB::table($tabla)->where($columna, $data[$campo])->exists();
+
+        if (!$existe) {
+            throw ValidationException::withMessages([$campo => [$mensaje]]);
+        }
     }
 }
